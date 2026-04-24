@@ -29,7 +29,7 @@ def _do_search(params: dict) -> tuple[list, list]:
         max_items=params.get("max_results", 10) * 3,  # fetch extra to allow for filtering
     )
 
-    print(f"[stac_scout] fetching items...")
+    print("[stac_scout] fetching items...")
     all_items = list(search.items())
     items = [
         i for i in all_items
@@ -78,7 +78,7 @@ def _do_search(params: dict) -> tuple[list, list]:
 
 async def stac_scout_node(state: AtlasState) -> dict:
     params = state["search_params"] or {}
-    print(f"[stac_scout] node start — handing off to thread executor")
+    print("[stac_scout] node start — handing off to thread executor")
     loop = asyncio.get_event_loop()
     results, features = await loop.run_in_executor(None, _do_search, params)
     print(f"[stac_scout] node done — {len(results)} result(s), {len(features)} feature(s)")

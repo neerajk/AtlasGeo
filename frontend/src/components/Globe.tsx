@@ -39,7 +39,7 @@ export function Globe({ features, onFeatureClick }: GlobeProps) {
       style: FREE_STYLE,
       center: [0, 20],
       zoom: 2,
-      attributionControl: true,
+      attributionControl: { compact: false },
     })
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
@@ -61,7 +61,8 @@ export function Globe({ features, onFeatureClick }: GlobeProps) {
 
     const layer = new GeoJsonLayer({
       id: 'stac-footprints',
-      data: { type: 'FeatureCollection', features },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data: { type: 'FeatureCollection' as const, features } as any,
       filled: true,
       stroked: true,
       getFillColor: [64, 160, 255, 35],

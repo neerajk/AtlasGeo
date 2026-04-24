@@ -3,7 +3,6 @@ Model router — picks the right LangChain chat model per agent.
 Priority: settings override (from .env) → config/models.yaml primary → fallback.
 """
 
-import os
 from pathlib import Path
 from functools import lru_cache
 from typing import Any

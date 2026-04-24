@@ -32,7 +32,7 @@ export function ChatPanel({ onFeatures, selectedFeature }: ChatPanelProps) {
   useEffect(() => {
     atlasSocket.connect()
     const unsub = atlasSocket.onMessage(handleWsMessage)
-    return unsub
+    return () => { unsub() }
   }, [])
 
   useEffect(() => {

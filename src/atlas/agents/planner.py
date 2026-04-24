@@ -39,7 +39,7 @@ async def planner_node(state: AtlasState) -> dict:
 
     today = datetime.utcnow().strftime("%Y-%m-%d")
     llm = get_llm("planner")
-    print(f"[planner] calling LLM...")
+    print("[planner] calling LLM...")
 
     msg = await llm.ainvoke(_PROMPT.format(query=query, today=today))
     text = msg.content.strip()
@@ -51,7 +51,7 @@ async def planner_node(state: AtlasState) -> dict:
 
     try:
         params = json.loads(text)
-        print(f"[planner] JSON parsed OK")
+        print("[planner] JSON parsed OK")
     except json.JSONDecodeError as e:
         print(f"[planner] JSON parse failed ({e}) — using defaults")
         params = {}
