@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+dist/
+build/
+*.egg-info/
+.eggs/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# Env
+.env
+.env.local
+
+# Geospatial outputs
+*.tif
+*.tiff
+*.geotiff
+*.vrt
+/tmp/atlas_*
+graphify-out/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Qdrant local data (L2)
+qdrant_storage/
