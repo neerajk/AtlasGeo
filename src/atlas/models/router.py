@@ -70,12 +70,13 @@ def get_llm(agent: str, **kwargs: Any) -> BaseChatModel:
     from langchain_openai import ChatOpenAI
 
     if model_id.startswith("openrouter/"):
-        # Pass api_key explicitly — openai 2.x uses it reliably in the Bearer header.
+        key = settings.openrouter_api_key
         return ChatOpenAI(
             model=model_id.removeprefix("openrouter/"),
-            api_key=settings.openrouter_api_key,
+            api_key=key,
             base_url="https://openrouter.ai/api/v1",
             default_headers={
+                "Authorization": f"Bearer {key}",
                 "HTTP-Referer": "https://atlas.geoai",
                 "X-Title": "Atlas GeoAI",
             },

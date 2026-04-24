@@ -15,13 +15,26 @@ export interface GeoJsonFeature {
   }
 }
 
-export type WsMessageType = 'thinking' | 'geojson' | 'message' | 'error' | 'done'
+export interface TifLayerMsg {
+  id: string
+  name: string
+  sceneId: string
+  band: string
+  tileUrl: string       // template with {TITILER_URL} and {BACKEND_URL} placeholders
+  outputUrl: string     // template with {BACKEND_URL} placeholder
+  visible: boolean
+  opacity: number
+  floodAreaKm2?: number
+}
+
+export type WsMessageType = 'thinking' | 'geojson' | 'message' | 'error' | 'done' | 'tif_layers'
 
 export interface WsMessage {
   type: WsMessageType
-  message?: string   // thinking | error
-  content?: string   // message (markdown)
+  message?: string          // thinking | error
+  content?: string          // message (markdown)
   features?: GeoJsonFeature[]  // geojson
+  tif_layers?: TifLayerMsg[]   // analysis outputs
 }
 
 export interface CogLayer {

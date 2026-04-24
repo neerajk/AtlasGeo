@@ -1,145 +1,54 @@
-import type { GeoJsonFeature, CogLayer } from '../types'
-
-const TITILER_URL = import.meta.env.VITE_TITILER_URL ?? 'http://localhost:8001'
-
-const BANDS: { key: string; label: string; rescale: string }[] = [
-  { key: 'visual',   label: 'True Color',  rescale: '0,3000' },
-  { key: 'B04',      label: 'Red (B04)',   rescale: '0,3000' },
-  { key: 'B08',      label: 'NIR (B08)',   rescale: '0,5000' },
-  { key: 'B03',      label: 'Green (B03)', rescale: '0,3000' },
-  { key: 'B02',      label: 'Blue (B02)',  rescale: '0,3000' },
-]
-
-function buildTileUrl(href: string, rescale: string): string {
-  const encoded = encodeURIComponent(href)
-  return `${TITILER_URL}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@2x.png?url=${encoded}&rescale=${rescale}`
-}
+import type { CogLayer } from '../types'
 
 interface LayerPanelProps {
-  feature: GeoJsonFeature | null
   layers: CogLayer[]
-  onAddLayer: (layer: CogLayer) => void
   onToggleLayer: (id: string) => void
   onOpacityChange: (id: string, opacity: number) => void
   onRemoveLayer: (id: string) => void
 }
 
-export function LayerPanel({
-  feature,
-  layers,
-  onAddLayer,
-  onToggleLayer,
-  onOpacityChange,
-  onRemoveLayer,
-}: LayerPanelProps) {
-  const handleLoadBand = (bandKey: string, bandLabel: string, rescale: string) => {
-    if (!feature) return
-    const href = feature.properties.download_links[bandKey]
-    if (!href) return
-    const id = `${feature.properties.id}-${bandKey}`
-    if (layers.find((l) => l.id === id)) return
-    onAddLayer({
-      id,
-      name: `${bandLabel}`,
-      sceneId: feature.properties.id,
-      band: bandKey,
-      tileUrl: buildTileUrl(href, rescale),
-      visible: true,
-      opacity: 1,
-    })
-  }
+const BAND_COLOR: Record<string, string> = {
+  visual:  '#c0c0c0',
+  red:     '#e05050',
+  nir:     '#9040d0',
+  green:   '#3db060',
+  blue:    '#4088e0',
+  swir16:  '#e07830',
+  swir22:  '#d05a20',
+  flood:   '#30b8e8',
+}
 
+function bandColor(band: string): string {
+  return BAND_COLOR[band] ?? '#6060a0'
+}
+
+export function LayerPanel({ layers, onToggleLayer, onOpacityChange, onRemoveLayer }: LayerPanelProps) {
   return (
-    <div style={styles.panel}>
-      {feature ? (
-        <>
-          <div style={styles.section}>
-            <div style={styles.sectionTitle}>Scene</div>
-            <div style={styles.meta}>
-              <span style={styles.metaLabel}>ID</span>
-              <span style={styles.metaValue}>{feature.properties.id.slice(0, 24)}…</span>
-            </div>
-            {feature.properties.datetime && (
-              <div style={styles.meta}>
-                <span style={styles.metaLabel}>Date</span>
-                <span style={styles.metaValue}>
-                  {new Date(feature.properties.datetime).toLocaleDateString()}
-                </span>
-              </div>
-            )}
-            {feature.properties.cloud_cover != null && (
-              <div style={styles.meta}>
-                <span style={styles.metaLabel}>Cloud</span>
-                <span style={styles.metaValue}>{feature.properties.cloud_cover.toFixed(1)}%</span>
-              </div>
-            )}
-            <div style={styles.meta}>
-              <span style={styles.metaLabel}>Platform</span>
-              <span style={styles.metaValue}>{feature.properties.platform}</span>
-            </div>
-          </div>
+    <div style={s.panel}>
 
-          <div style={styles.section}>
-            <div style={styles.sectionTitle}>Load Band</div>
-            <div style={styles.bandGrid}>
-              {BANDS.map(({ key, label, rescale }) => {
-                const available = !!feature.properties.download_links[key]
-                const loaded = layers.some((l) => l.id === `${feature.properties.id}-${key}`)
-                return (
-                  <button
-                    key={key}
-                    style={{
-                      ...styles.bandBtn,
-                      ...(loaded ? styles.bandBtnLoaded : {}),
-                      ...(!available ? styles.bandBtnDisabled : {}),
-                    }}
-                    disabled={!available || loaded}
-                    onClick={() => handleLoadBand(key, label, rescale)}
-                    title={available ? (loaded ? 'Already loaded' : `Load ${label}`) : 'Not available'}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </>
+      {/* ── Header toolbar ── */}
+      <div style={s.toolbar}>
+        <span style={s.toolbarTitle}>Layers</span>
+        {layers.length > 0 && (
+          <span style={s.count}>{layers.length}</span>
+        )}
+      </div>
+
+      {layers.length === 0 ? (
+        <div style={s.empty}>
+          <span style={s.emptyText}>No layers loaded</span>
+          <span style={s.emptyHint}>Click a scene footprint to load bands</span>
+        </div>
       ) : (
-        <div style={styles.empty}>Click a footprint to view bands</div>
-      )}
-
-      {layers.length > 0 && (
-        <div style={styles.section}>
-          <div style={styles.sectionTitle}>Layers</div>
+        <div style={s.list}>
           {[...layers].reverse().map((layer) => (
-            <div key={layer.id} style={styles.layerRow}>
-              <button
-                style={{ ...styles.visBtn, opacity: layer.visible ? 1 : 0.4 }}
-                onClick={() => onToggleLayer(layer.id)}
-                title={layer.visible ? 'Hide' : 'Show'}
-              >
-                {layer.visible ? '👁' : '👁‍🗨'}
-              </button>
-              <span style={styles.layerName} title={layer.name}>
-                {layer.name}
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={layer.opacity}
-                style={styles.opacitySlider}
-                onChange={(e) => onOpacityChange(layer.id, parseFloat(e.target.value))}
-              />
-              <button
-                style={styles.removeBtn}
-                onClick={() => onRemoveLayer(layer.id)}
-                title="Remove layer"
-              >
-                ×
-              </button>
-            </div>
+            <LayerRow
+              key={layer.id}
+              layer={layer}
+              onToggle={() => onToggleLayer(layer.id)}
+              onOpacity={(v) => onOpacityChange(layer.id, v)}
+              onRemove={() => onRemoveLayer(layer.id)}
+            />
           ))}
         </div>
       )}
@@ -147,110 +56,239 @@ export function LayerPanel({
   )
 }
 
-const styles: Record<string, React.CSSProperties> = {
+function LayerRow({
+  layer, onToggle, onOpacity, onRemove,
+}: {
+  layer: CogLayer
+  onToggle: () => void
+  onOpacity: (v: number) => void
+  onRemove: () => void
+}) {
+  const color = bandColor(layer.band)
+
+  return (
+    <div style={s.row}>
+      {/* Left accent strip — colored by band type */}
+      <div style={{ ...s.strip, background: layer.visible ? color : '#1e1e38' }} />
+
+      {/* Visibility checkbox */}
+      <button
+        onClick={onToggle}
+        style={s.checkbox}
+        title={layer.visible ? 'Hide layer' : 'Show layer'}
+      >
+        <div style={{
+          ...s.checkboxInner,
+          background: layer.visible ? color : 'transparent',
+          borderColor: layer.visible ? color : '#2a2a48',
+        }}>
+          {layer.visible && <span style={s.checkmark}>✓</span>}
+        </div>
+      </button>
+
+      {/* Raster icon */}
+      <div style={{ ...s.rasterIcon, color: layer.visible ? color : '#252548' }}>▦</div>
+
+      {/* Name + meta */}
+      <div style={s.info}>
+        <span
+          style={{ ...s.name, color: layer.visible ? '#b0b0d8' : '#40405a' }}
+          title={layer.name}
+        >
+          {layer.name}
+        </span>
+        <div style={s.metaRow}>
+          <span style={s.bandTag}>{layer.band}</span>
+          <span style={s.sceneId} title={layer.sceneId}>
+            {layer.sceneId.slice(0, 22)}…
+          </span>
+        </div>
+
+        {/* Opacity bar */}
+        <div style={s.opacityRow}>
+          <span style={s.opacityLabel}>{Math.round(layer.opacity * 100)}%</span>
+          <input
+            type="range"
+            min={0} max={1} step={0.01}
+            value={layer.opacity}
+            onChange={(e) => onOpacity(parseFloat(e.target.value))}
+            style={{ ...s.slider, accentColor: color }}
+            title={`Opacity: ${Math.round(layer.opacity * 100)}%`}
+          />
+        </div>
+      </div>
+
+      {/* Remove */}
+      <button onClick={onRemove} style={s.removeBtn} title="Remove layer">×</button>
+    </div>
+  )
+}
+
+const s: Record<string, React.CSSProperties> = {
   panel: {
-    background: '#1a1a2e',
-    color: '#e0e0e0',
-    fontSize: 12,
-    overflowY: 'auto',
-    maxHeight: '100%',
-    borderTop: '1px solid #2a2a4a',
+    background: '#0c0c18',
+    borderTop: '1px solid #1a1a30',
+    display: 'flex',
+    flexDirection: 'column',
+    maxHeight: 280,
   },
-  section: {
-    padding: '10px 12px',
-    borderBottom: '1px solid #2a2a4a',
+  toolbar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '7px 12px',
+    borderBottom: '1px solid #141428',
+    flexShrink: 0,
+    background: '#09090f',
   },
-  sectionTitle: {
+  toolbarTitle: {
     fontSize: 10,
     fontWeight: 700,
     textTransform: 'uppercase',
-    letterSpacing: '0.08em',
-    color: '#7070a0',
-    marginBottom: 8,
+    letterSpacing: '0.12em',
+    color: '#35355a',
   },
-  meta: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-    gap: 8,
+  count: {
+    fontSize: 10,
+    background: '#18183a',
+    color: '#50508a',
+    borderRadius: 10,
+    padding: '1px 7px',
+    fontWeight: 700,
+    border: '1px solid #252548',
   },
-  metaLabel: {
-    color: '#7070a0',
-    flexShrink: 0,
+  list: {
+    overflowY: 'auto',
+    flex: 1,
   },
-  metaValue: {
-    color: '#c0c0e0',
-    textAlign: 'right',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  bandGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 6,
-  },
-  bandBtn: {
-    background: '#2a2a4a',
-    border: '1px solid #3a3a6a',
-    color: '#c0c0ff',
-    borderRadius: 4,
-    padding: '5px 0',
-    cursor: 'pointer',
-    fontSize: 11,
-    transition: 'background 0.15s',
-  },
-  bandBtnLoaded: {
-    background: '#1a3a1a',
-    border: '1px solid #3a6a3a',
-    color: '#80ff80',
-    cursor: 'default',
-  },
-  bandBtnDisabled: {
-    opacity: 0.35,
-    cursor: 'not-allowed',
-  },
-  empty: {
-    padding: '20px 12px',
-    color: '#505070',
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  layerRow: {
+  row: {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
+    gap: 8,
+    padding: '8px 10px 8px 0',
+    borderBottom: '1px solid #0f0f1e',
+    position: 'relative',
   },
-  visBtn: {
+  strip: {
+    width: 3,
+    alignSelf: 'stretch',
+    flexShrink: 0,
+    borderRadius: '0 2px 2px 0',
+    transition: 'background 0.2s',
+  },
+  checkbox: {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
     padding: 0,
-    fontSize: 14,
-    lineHeight: 1,
     flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
   },
-  layerName: {
+  checkboxInner: {
+    width: 14,
+    height: 14,
+    border: '1.5px solid',
+    borderRadius: 3,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.15s',
+  },
+  checkmark: {
+    fontSize: 9,
+    color: '#000',
+    fontWeight: 900,
+    lineHeight: 1,
+  },
+  rasterIcon: {
+    fontSize: 13,
+    flexShrink: 0,
+    transition: 'color 0.2s',
+    lineHeight: 1,
+  },
+  info: {
     flex: 1,
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+  },
+  name: {
+    fontSize: 12,
+    fontWeight: 500,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
-    color: '#c0c0e0',
+    transition: 'color 0.2s',
+    lineHeight: 1.3,
   },
-  opacitySlider: {
-    width: 60,
+  metaRow: {
+    display: 'flex',
+    gap: 6,
+    alignItems: 'center',
+  },
+  bandTag: {
+    fontSize: 9,
+    fontFamily: 'monospace',
+    color: '#30305a',
+    background: '#111128',
+    border: '1px solid #1c1c38',
+    borderRadius: 3,
+    padding: '0px 4px',
     flexShrink: 0,
-    accentColor: '#6060ff',
+  },
+  sceneId: {
+    fontSize: 9,
+    color: '#25253a',
+    fontFamily: 'monospace',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  opacityRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 1,
+  },
+  opacityLabel: {
+    fontSize: 9,
+    color: '#25253a',
+    width: 26,
+    flexShrink: 0,
+    fontFamily: 'monospace',
+  },
+  slider: {
+    flex: 1,
+    height: 2,
+    cursor: 'pointer',
   },
   removeBtn: {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    color: '#606080',
-    fontSize: 16,
+    color: '#25253a',
+    fontSize: 18,
     lineHeight: 1,
-    padding: 0,
+    padding: '0 4px',
     flexShrink: 0,
+    transition: 'color 0.15s',
+  },
+  empty: {
+    padding: '14px 12px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 4,
+  },
+  emptyText: {
+    fontSize: 11,
+    color: '#25253a',
+  },
+  emptyHint: {
+    fontSize: 10,
+    color: '#1a1a30',
+    fontStyle: 'italic',
   },
 }

@@ -52,6 +52,11 @@ def atlas_tool(name: str, description: str, tags: list[str] | None = None):
     return decorator
 
 
+def get_tool(name: str) -> "AtlasTool | None":
+    """Return a registered tool by name, or None if not found."""
+    return TOOL_REGISTRY.get(name)
+
+
 def get_all_langchain_tools(tags: list[str] | None = None) -> list[StructuredTool]:
     """Return all registered tools as LangChain StructuredTools, optionally filtered by tag."""
     tools = TOOL_REGISTRY.values()

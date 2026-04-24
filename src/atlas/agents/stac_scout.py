@@ -9,7 +9,8 @@ import pystac_client
 from atlas.config import settings
 from atlas.state import AtlasState
 
-ASSET_KEYS = {"B04", "B08", "B03", "B02", "B8A", "visual", "thumbnail", "SCL", "overview"}
+# Element84 Earth Search v1 uses semantic names, not band numbers
+ASSET_KEYS = {"visual", "thumbnail", "red", "green", "blue", "nir", "nir08", "swir16", "swir22", "scl"}
 
 
 def _do_search(params: dict) -> tuple[list, list]:

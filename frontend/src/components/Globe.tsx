@@ -1,15 +1,19 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { GeoJsonLayer } from '@deck.gl/layers'
-import type { GeoJsonFeature, CogLayer } from '../types'
+import type { CogLayer, GeoJsonFeature } from '../types'
+import { SceneDrawer } from './SceneDrawer'
 
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 interface GlobeProps {
   features: GeoJsonFeature[]
   cogLayers: CogLayer[]
-  onFeatureClick?: (feature: GeoJsonFeature) => void
+  onAddLayer:      (layer: CogLayer) => void
+  onToggleLayer:   (id: string) => void
+  onOpacityChange: (id: string, opacity: number) => void
+  onRemoveLayer:   (id: string) => void
 }
 
 const FREE_STYLE = {
@@ -27,12 +31,15 @@ const FREE_STYLE = {
   layers: [{ id: 'esri-imagery', type: 'raster' as const, source: 'esri' }],
 }
 
-export function Globe({ features, cogLayers, onFeatureClick }: GlobeProps) {
+export function Globe({ features, cogLayers, onAddLayer, onToggleLayer, onOpacityChange, onRemoveLayer }: GlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<maplibregl.Map | null>(null)
-  const overlayRef = useRef<MapboxOverlay | null>(null)
-  const mapReadyRef = useRef(false)
+  const mapRef       = useRef<maplibregl.Map | null>(null)
+  const overlayRef   = useRef<MapboxOverlay | null>(null)
+  const mapReadyRef  = useRef(false)
 
+  const [selectedFeature, setSelectedFeature] = useState<GeoJsonFeature | null>(null)
+
+  // Map init
   useEffect(() => {
     if (!containerRef.current) return
 
@@ -51,7 +58,7 @@ export function Globe({ features, cogLayers, onFeatureClick }: GlobeProps) {
 
     map.on('load', () => { mapReadyRef.current = true })
 
-    mapRef.current = map
+    mapRef.current     = map
     overlayRef.current = overlay
 
     return () => {
@@ -61,50 +68,54 @@ export function Globe({ features, cogLayers, onFeatureClick }: GlobeProps) {
     }
   }, [])
 
-  // Sync footprint deck.gl layer
+  // Sync deck.gl footprint layer
   useEffect(() => {
     if (!overlayRef.current) return
-
-    const layer = new GeoJsonLayer({
-      id: 'stac-footprints',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      data: { type: 'FeatureCollection' as const, features } as any,
-      filled: true,
-      stroked: true,
-      getFillColor: [64, 160, 255, 35],
-      getLineColor: [64, 160, 255, 220],
-      getLineWidth: 2,
-      lineWidthMinPixels: 1,
-      pickable: true,
-      autoHighlight: true,
-      highlightColor: [255, 200, 64, 80],
-      onClick: ({ object }) => {
-        if (object && onFeatureClick) onFeatureClick(object as GeoJsonFeature)
-      },
+    overlayRef.current.setProps({
+      layers: [new GeoJsonLayer({
+        id: 'stac-footprints',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: { type: 'FeatureCollection' as const, features } as any,
+        filled: true,
+        stroked: true,
+        getFillColor: [64, 160, 255, 35],
+        getLineColor: [64, 160, 255, 220],
+        getLineWidth: 2,
+        lineWidthMinPixels: 1,
+        pickable: true,
+        autoHighlight: true,
+        highlightColor: [255, 200, 64, 80],
+        onClick: ({ object }) => {
+          if (!object) return
+          const feat = object as GeoJsonFeature
+          setSelectedFeature((prev) =>
+            prev?.properties.id === feat.properties.id ? null : feat
+          )
+        },
+      })],
     })
+  }, [features])
 
-    overlayRef.current.setProps({ layers: [layer] })
-
-    // Fly to results
-    if (features.length > 0) {
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-      features.forEach((f) => {
-        const coords: number[][] =
-          f.geometry.type === 'Polygon'
-            ? (f.geometry.coordinates as number[][][])[0]
-            : f.geometry.type === 'MultiPolygon'
-            ? (f.geometry.coordinates as number[][][][]).flat(2)
-            : []
-        coords.forEach(([x, y]) => {
-          minX = Math.min(minX, x); minY = Math.min(minY, y)
-          maxX = Math.max(maxX, x); maxY = Math.max(maxY, y)
-        })
+  // Fly to results (separate so it doesn't re-fire on inspectMode toggle)
+  useEffect(() => {
+    if (!features.length) return
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    features.forEach((f) => {
+      const coords: number[][] =
+        f.geometry.type === 'Polygon'
+          ? (f.geometry.coordinates as number[][][])[0]
+          : f.geometry.type === 'MultiPolygon'
+          ? (f.geometry.coordinates as number[][][][]).flat(2)
+          : []
+      coords.forEach(([x, y]) => {
+        minX = Math.min(minX, x); minY = Math.min(minY, y)
+        maxX = Math.max(maxX, x); maxY = Math.max(maxY, y)
       })
-      if (isFinite(minX)) {
-        mapRef.current?.fitBounds([[minX, minY], [maxX, maxY]], { padding: 60, duration: 1200 })
-      }
+    })
+    if (isFinite(minX)) {
+      mapRef.current?.fitBounds([[minX, minY], [maxX, maxY]], { padding: 60, duration: 1200 })
     }
-  }, [features, onFeatureClick])
+  }, [features])
 
   // Sync COG raster layers into MapLibre
   useEffect(() => {
@@ -113,9 +124,8 @@ export function Globe({ features, cogLayers, onFeatureClick }: GlobeProps) {
 
     const apply = () => {
       const existingSources = new Set<string>()
-      const existingLayers = new Set<string>()
+      const existingLayers  = new Set<string>()
 
-      // Track what's currently on the map
       const style = map.getStyle()
       if (style?.sources) {
         Object.keys(style.sources).forEach((id) => {
@@ -130,39 +140,25 @@ export function Globe({ features, cogLayers, onFeatureClick }: GlobeProps) {
 
       const wantedIds = new Set(cogLayers.map((l) => `cog-${l.id}`))
 
-      // Remove layers/sources that are no longer wanted
       existingLayers.forEach((lid) => {
-        if (!wantedIds.has(lid)) {
-          if (map.getLayer(lid)) map.removeLayer(lid)
-        }
+        if (!wantedIds.has(lid) && map.getLayer(lid)) map.removeLayer(lid)
       })
       existingSources.forEach((sid) => {
-        if (!wantedIds.has(sid)) {
-          if (map.getSource(sid)) map.removeSource(sid)
-        }
+        if (!wantedIds.has(sid) && map.getSource(sid)) map.removeSource(sid)
       })
 
-      // Add or update layers in order (bottom = first in array)
       cogLayers.forEach((cog) => {
         const srcId = `cog-${cog.id}`
         const layId = `cog-${cog.id}`
 
         if (!map.getSource(srcId)) {
-          map.addSource(srcId, {
-            type: 'raster',
-            tiles: [cog.tileUrl],
-            tileSize: 512,
-          })
+          map.addSource(srcId, { type: 'raster', tiles: [cog.tileUrl], tileSize: 512 })
         }
 
         if (!map.getLayer(layId)) {
           map.addLayer({
-            id: layId,
-            type: 'raster',
-            source: srcId,
-            paint: {
-              'raster-opacity': cog.visible ? cog.opacity : 0,
-            },
+            id: layId, type: 'raster', source: srcId,
+            paint: { 'raster-opacity': cog.visible ? cog.opacity : 0 },
           })
         } else {
           map.setPaintProperty(layId, 'raster-opacity', cog.visible ? cog.opacity : 0)
@@ -177,5 +173,18 @@ export function Globe({ features, cogLayers, onFeatureClick }: GlobeProps) {
     }
   }, [cogLayers])
 
-  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      <SceneDrawer
+        feature={selectedFeature}
+        cogLayers={cogLayers}
+        onAddLayer={onAddLayer}
+        onToggleLayer={onToggleLayer}
+        onOpacityChange={onOpacityChange}
+        onRemoveLayer={onRemoveLayer}
+        onClose={() => setSelectedFeature(null)}
+      />
+    </div>
+  )
 }

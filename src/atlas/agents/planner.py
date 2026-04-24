@@ -2,9 +2,13 @@
 Planner agent — converts natural language query into structured STAC search params.
 """
 
+import asyncio
 import json
 import re
 from datetime import datetime, timedelta
+
+import requests
+from langchain_core.messages import HumanMessage
 
 from atlas.models import get_llm
 from atlas.state import AtlasState
@@ -19,18 +23,39 @@ Extract satellite search parameters from the user query and return ONLY a valid 
   "collection": "sentinel-2-l2a",
   "cloud_cover_max": 20,
   "max_results": 10,
-  "location_name": "human readable place"
+  "location_name": "human readable place",
+  "task_type": "stac_search"
 }}
 
 Rules:
-- bbox: WGS84 degrees for the named location. Use known coordinates (e.g. Nairobi ≈ [36.6,-1.4,37.1,-1.2], London ≈ [-0.5,51.3,0.3,51.7], NYC ≈ [-74.3,40.5,-73.7,40.9]). Return null only if truly unknown.
+- bbox: WGS84 degrees for the named location. Use known coordinates (e.g. Nairobi ≈ [36.6,-1.4,37.1,-1.2], London ≈ [-0.5,51.3,0.3,51.7], NYC ≈ [-74.3,40.5,-73.7,40.9], Bangladesh ≈ [88.0,20.5,92.7,26.7], Mumbai ≈ [72.7,18.8,73.1,19.3]). Return null only if truly unknown.
 - date_range: resolve relative expressions like "last month", "this week" using today={today}. "last month" means the calendar month before today.
 - cloud_cover_max: default 20, higher if user says "cloudy" or "any"
 - max_results: default 10
+- task_type: one of "stac_search" (default) or "flood_mapping". Use "flood_mapping" when the query mentions flood, flooding, inundation, water extent, deluge, or submerged land.
 
 User query: {query}
 
 Respond with ONLY the JSON object. No markdown, no explanation."""
+
+
+def _geocode(location: str) -> list[float] | None:
+    """Nominatim bbox lookup — returns [minx, miny, maxx, maxy] or None."""
+    try:
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": location, "format": "json", "limit": 1},
+            headers={"User-Agent": "AtlasGeoAI/1.0"},
+            timeout=6,
+        )
+        data = r.json()
+        if not data:
+            return None
+        bb = data[0]["boundingbox"]          # [minlat, maxlat, minlon, maxlon]
+        return [float(bb[2]), float(bb[0]), float(bb[3]), float(bb[1])]
+    except Exception as exc:
+        print(f"[planner] geocode failed: {exc}")
+        return None
 
 
 async def planner_node(state: AtlasState) -> dict:
@@ -41,7 +66,9 @@ async def planner_node(state: AtlasState) -> dict:
     llm = get_llm("planner")
     print("[planner] calling LLM...")
 
-    msg = await llm.ainvoke(_PROMPT.format(query=query, today=today))
+    history = state.get("messages", [])
+    prompt_msg = HumanMessage(content=_PROMPT.format(query=query, today=today))
+    msg = await llm.ainvoke([*history, prompt_msg])
     text = msg.content.strip()
     print(f"[planner] LLM raw response: {text[:200]!r}")
 
@@ -57,18 +84,43 @@ async def planner_node(state: AtlasState) -> dict:
         params = {}
 
     # Apply defaults
-    if not params.get("bbox"):
-        params["bbox"] = [-180.0, -90.0, 180.0, 90.0]
+    bbox = params.get("bbox")
+    if not bbox or any(v is None for v in bbox):
+        location = params.get("location_name") or query
+        print(f"[planner] bbox missing — geocoding {location!r}")
+        geocoded = await asyncio.to_thread(_geocode, location)
+        if geocoded:
+            print(f"[planner] geocoded bbox: {geocoded}")
+            params["bbox"] = geocoded
+        else:
+            print("[planner] geocode failed — falling back to global bbox")
+            params["bbox"] = [-180.0, -90.0, 180.0, 90.0]
 
-    if not params.get("date_range"):
+    date_range = params.get("date_range")
+    if not date_range:
         end = datetime.utcnow()
         start = end - timedelta(days=30)
         params["date_range"] = [start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")]
+    elif date_range[0] == date_range[1]:
+        # LLM collapsed a "latest/recent" query to a single day — expand to 30 days back
+        latest_keywords = {"latest", "recent", "newest", "last", "current", "today"}
+        if any(kw in query.lower() for kw in latest_keywords):
+            end = datetime.strptime(date_range[1], "%Y-%m-%d")
+            start = end - timedelta(days=30)
+            params["date_range"] = [start.strftime("%Y-%m-%d"), date_range[1]]
+            print(f"[planner] expanded single-day range to 30 days: {params['date_range']}")
 
     params.setdefault("collection", "sentinel-2-l2a")
     params.setdefault("cloud_cover_max", 20)
     params.setdefault("max_results", 10)
     params.setdefault("location_name", query[:60])
+    params.setdefault("task_type", "stac_search")
+
+    # Fallback: keyword-based task_type detection if LLM missed it
+    if params["task_type"] == "stac_search":
+        flood_keywords = {"flood", "flooding", "inundation", "inundated", "water extent", "submerged", "deluge"}
+        if any(kw in query.lower() for kw in flood_keywords):
+            params["task_type"] = "flood_mapping"
 
     print(f"[planner] done — params: {params}")
     return {"search_params": params}

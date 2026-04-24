@@ -1,16 +1,33 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { atlasSocket } from '../api/atlas'
-import type { ChatMessage, GeoJsonFeature, WsMessage } from '../types'
+import type { ChatMessage, CogLayer, GeoJsonFeature, TifLayerMsg, WsMessage } from '../types'
 
 interface Step {
   text: string
   done: boolean
 }
 
+const TITILER_URL = import.meta.env.VITE_TITILER_URL ?? 'http://localhost:8001'
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
+
+function resolveTifLayer(msg: TifLayerMsg): CogLayer {
+  return {
+    id: msg.id,
+    name: msg.name,
+    sceneId: msg.sceneId,
+    band: msg.band,
+    tileUrl: msg.tileUrl
+      .replace('{TITILER_URL}', TITILER_URL)
+      .replace('{BACKEND_URL}', encodeURIComponent(BACKEND_URL)),
+    visible: msg.visible,
+    opacity: msg.opacity,
+  }
+}
+
 interface ChatPanelProps {
   onFeatures: (features: GeoJsonFeature[]) => void
-  selectedFeature: GeoJsonFeature | null
+  onTifLayers: (layers: CogLayer[]) => void
 }
 
 let msgCounter = 0
@@ -22,7 +39,7 @@ const EXAMPLES = [
   'Sentinel-2 imagery over Mumbai, India in March 2024',
 ]
 
-export function ChatPanel({ onFeatures, selectedFeature }: ChatPanelProps) {
+export function ChatPanel({ onFeatures, onTifLayers }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [steps, setSteps] = useState<Step[]>([])
   const [input, setInput] = useState('')
@@ -52,6 +69,12 @@ export function ChatPanel({ onFeatures, selectedFeature }: ChatPanelProps) {
         if (msg.features) onFeatures(msg.features)
         break
 
+      case 'tif_layers':
+        if (msg.tif_layers?.length) {
+          onTifLayers(msg.tif_layers.map(resolveTifLayer))
+        }
+        break
+
       case 'message':
         setSteps([])
         setMessages(prev => [
@@ -74,7 +97,7 @@ export function ChatPanel({ onFeatures, selectedFeature }: ChatPanelProps) {
         setBusy(false)
         break
     }
-  }, [onFeatures])
+  }, [onFeatures, onTifLayers])
 
   const send = useCallback(() => {
     const q = input.trim()
@@ -82,9 +105,12 @@ export function ChatPanel({ onFeatures, selectedFeature }: ChatPanelProps) {
     setInput('')
     setBusy(true)
     setSteps([])
+    atlasSocket.send({
+      query: q,
+      history: messages.map(m => ({ role: m.role, content: m.content })),
+    })
     setMessages(prev => [...prev, { id: uid(), role: 'user', content: q }])
-    atlasSocket.send(q)
-  }, [input, busy])
+  }, [input, busy, messages])
 
   return (
     <div style={styles.panel}>
@@ -134,21 +160,6 @@ export function ChatPanel({ onFeatures, selectedFeature }: ChatPanelProps) {
           </div>
         )}
 
-        {selectedFeature && (
-          <div style={styles.featureCard}>
-            <strong>{selectedFeature.properties.id}</strong>
-            <div>📅 {selectedFeature.properties.datetime?.slice(0, 10)}</div>
-            <div>☁️ {selectedFeature.properties.cloud_cover}%</div>
-            {Object.entries(selectedFeature.properties.download_links || {}).map(([k, v]) => (
-              <div key={k}>
-                <a href={v} target="_blank" rel="noopener noreferrer" style={styles.link}>
-                  ⬇ {k}
-                </a>
-              </div>
-            ))}
-          </div>
-        )}
-
         <div ref={bottomRef} />
       </div>
 
@@ -191,8 +202,6 @@ const styles: Record<string, React.CSSProperties> = {
   stepText:       { fontSize: 13, lineHeight: 1.4 },
   stepDoneText:   { color: '#475569' },
   stepActiveText: { color: '#94c4ff' },
-  featureCard:    { background: '#1e1e2e', border: '1px solid #40a0ff', borderRadius: 8, padding: 12, fontSize: 13, display: 'flex', flexDirection: 'column', gap: 4 },
-  link:           { color: '#40a0ff', textDecoration: 'none' },
   inputRow:       { padding: 12, borderTop: '1px solid #2a2a3a', display: 'flex', gap: 8, alignItems: 'center' },
   input:          { flex: 1, background: '#1e1e2e', border: '1px solid #2a2a3a', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 14, outline: 'none' },
   sendBtn:        { background: '#40a0ff', border: 'none', borderRadius: 8, padding: '0 18px', height: 40, color: '#fff', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 44 },

@@ -4,21 +4,18 @@
 
 agents:
   planner:
-    # Extracts bbox, date, cloud cover from natural language
-    primary: "ollama/nemotron-3-nano:30b-cloud"
-    fallback: "ollama/nemotron-3-super:cloud"
+    primary: "ollama/gemma4:31b-cloud"
+    fallback: "ollama/nemotron-3-nano:30b-cloud"
 
   stac_scout:
-    # Parses STAC results, may need structured output
-    primary: "ollama/nemotron-3-nano:30b-cloud"
-    fallback: "ollama/nemotron-3-super:cloud"
+    primary: "ollama/gemma4:31b-cloud"
+    fallback: "ollama/nemotron-3-nano:30b-cloud"
 
   response:
-    # Formats final answer for user
-    primary: "ollama/nemotron-3-nano:30b-cloud"
-    fallback: "ollama/nemotron-3-super:cloud"
+    primary: "ollama/gemma4:31b-cloud"
+    fallback: "ollama/nemotron-3-nano:30b-cloud"
 
-# Paid upgrades — uncomment to use:
-# planner.primary: "anthropic/claude-sonnet-4-6"
-# stac_scout.primary: "google/gemini-2.0-flash"
-# response.primary: "anthropic/claude-sonnet-4-6"
+# Other options — swap in as needed:
+# "openrouter/moonshotai/kimi-k2:free"     — free tier, same model
+# "anthropic/claude-sonnet-4-6"            — best accuracy, requires ANTHROPIC_API_KEY
+# "openrouter/google/gemini-2.0-flash"     — fast + cheap

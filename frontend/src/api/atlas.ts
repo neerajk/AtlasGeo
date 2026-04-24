@@ -37,17 +37,17 @@ export class AtlasSocket {
     this.ws?.close()
   }
 
-  send(query: string) {
+  send(payload: { query: string; history?: Array<{ role: string; content: string }> }) {
     if (this.ws?.readyState !== WebSocket.OPEN) {
       this.connect()
-      this.ws!.addEventListener('open', () => this._send(query), { once: true })
+      this.ws!.addEventListener('open', () => this._send(payload), { once: true })
     } else {
-      this._send(query)
+      this._send(payload)
     }
   }
 
-  private _send(query: string) {
-    this.ws?.send(JSON.stringify({ query }))
+  private _send(payload: { query: string; history?: Array<{ role: string; content: string }> }) {
+    this.ws?.send(JSON.stringify(payload))
   }
 
   onMessage(handler: MessageHandler) {

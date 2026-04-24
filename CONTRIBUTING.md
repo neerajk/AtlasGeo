@@ -56,7 +56,7 @@ micromamba run -n atlas pytest tools/my_tool/test_tool.py -v
 
 `sentinel-2` `landsat` `stac` `cog` `gdal` `vegetation` `water` `urban` `agriculture`
 `spectral-index` `download` `search` `analysis` `visualization` `flood` `change-detection`
-`object-detection` `segmentation` `inference` `huggingface`
+`object-detection` `segmentation` `inference` `huggingface` `burn-scar` `nbr` `mndwi`
 
 ---
 
@@ -71,9 +71,11 @@ make env
 
 # Copy and configure env
 cp .env.example .env
-# Set at minimum one of:
-#   OLLAMA_BASE_URL=http://localhost:11434   (local, zero cost)
-#   OPENROUTER_API_KEY=sk-or-v1-...
+# Minimum: set Ollama (local, free) — no API key needed
+#   OLLAMA_BASE_URL=http://localhost:11434
+# Or a cloud LLM:
+#   OPENROUTER_API_KEY=sk-or-v1-...   ← must be sk-or-v1-* format
+#   ANTHROPIC_API_KEY=sk-ant-...
 
 # Start all three services
 make dev
@@ -94,7 +96,7 @@ make frontend  # Vite dev server only
 
 ```bash
 make lint   # ruff + tsc --noEmit
-make test   # pytest (16 tests, all mocked, ~1s)
+make test   # pytest
 ```
 
 ---
@@ -103,41 +105,69 @@ make test   # pytest (16 tests, all mocked, ~1s)
 
 | Variable | Default | Description |
 |---|---|---|
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
-| `OPENROUTER_API_KEY` | — | OpenRouter key (`sk-or-v1-*` format) |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL — no key needed |
+| `OPENROUTER_API_KEY` | — | OpenRouter key — must be `sk-or-v1-*` format |
 | `ANTHROPIC_API_KEY` | — | Anthropic key |
 | `GROQ_API_KEY` | — | Groq key |
-| `VITE_WS_URL` | `ws://localhost:8000/ws` | WebSocket URL for frontend |
+| `VITE_WS_URL` | `ws://localhost:8000/ws/chat` | WebSocket URL for frontend |
 | `VITE_TITILER_URL` | `http://localhost:8001` | titiler URL for COG tile streaming |
+| `VITE_BACKEND_URL` | `http://localhost:8000` | Backend URL (used to resolve output GeoTIFF URLs) |
+| `ATLAS_MODEL_PLANNER` | — | Override planner LLM at runtime |
+| `ATLAS_MODEL_STAC_SCOUT` | — | Override stac_scout LLM at runtime |
+| `ATLAS_MODEL_RESPONSE` | — | Override response LLM at runtime |
 
 ---
 
 ## Architecture overview
 
 ```
-User prompt
+User prompt (+ conversation history)
     │
     ▼
-FastAPI WebSocket (/ws)
-    │
+FastAPI WebSocket (/ws/chat)
+    │  parses {query, history[]} → seeds AtlasState.messages
     ▼
-LangGraph DAG  ──────────────────────────────────────┐
-    │                                                  │
-    ├── planner_node      (LLM: extracts bbox/dates)   │
-    ├── stac_scout_node   (pystac-client → Element84)  │
-    └── response_node     (LLM: formats reply)         │
-                                                       │
-    ◄──────── stream_mode="updates" ───────────────────┘
+LangGraph DAG  ──────────────────────────────────────────────┐
+    │                                                          │
+    ├── planner_node        LLM: extracts bbox/dates/task_type │
+    │                       history prepended to LLM call      │
+    │                       Nominatim fallback if bbox null     │
+    │                                                          │
+    ├── stac_scout_node     pystac-client → Element84          │
+    │                       client-side cloud filtering         │
+    │                                                          │
+    ├── [conditional]                                          │
+    │   ├── flood_mapping   MNDWI → GeoTIFF → tif_layers msg  │
+    │   └── response_node   markdown table of scenes           │
+    │                                                          │
+    ◄──────── stream_mode="updates" ──────────────────────────┘
     │
     ▼
 Frontend WebSocket client
     │
-    ├── footprint polygons → deck.gl GeoJsonLayer on MapLibre globe
-    └── scene click → LayerPanel → band URL → titiler tiles → MapLibre raster layer
+    ├── thinking msgs  → streaming step indicator in ChatPanel
+    ├── geojson        → deck.gl GeoJsonLayer footprints on globe
+    ├── tif_layers     → COG raster layers (flood extent etc.)
+    └── scene click    → SceneDrawer (full-screen popup)
+                            ├── own MapLibre map instance
+                            ├── left panel: metadata, layers, bands, downloads
+                            └── titiler tiles stream into map
 ```
 
-**Adding a LangGraph node:** add a function to `src/atlas/agents/`, register it in `src/atlas/graph.py`, add it to `AtlasState` in `src/atlas/state.py`.
+**Adding a LangGraph node:** add a function to `src/atlas/agents/`, register in `src/atlas/graph.py`, update `AtlasState` in `src/atlas/state.py` if new state keys are needed.
 
 **Adding a tool:** drop `tools/<name>/tool.py` with `@atlas_tool`. Auto-discovered at startup.
 
 **Switching LLM:** edit `config/models.yaml` or set `ATLAS_MODEL_<AGENT>=prefix/model-id` at runtime.
+
+Supported model prefixes: `ollama/` · `anthropic/` · `openrouter/` · `groq/` · `google/`
+
+---
+
+## Frontend notes
+
+- `SceneDrawer` creates its own `maplibregl.Map` on mount and destroys it on close — each scene is isolated
+- `atlasSocket.send({ query, history[] })` — always send history, backend handles empty array gracefully
+- Never put side effects inside React state updater functions — StrictMode calls them twice in dev
+- titiler tile URL format: `/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png` (no `@2x` — removed in titiler 2.0)
+- Element84 asset keys are semantic: `green`, `red`, `nir`, `blue`, `swir16`, `visual` — not `B03`/`B08`

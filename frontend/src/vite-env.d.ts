@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_WS_URL?: string
   readonly VITE_TITILER_URL?: string
+  readonly VITE_BACKEND_URL?: string
 }
 
 interface ImportMeta {

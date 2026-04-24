@@ -6,18 +6,26 @@
 
 ---
 
-## Current State
+## Current State — v2
 
 ```
-✅ L1 COMPLETE
+✅ v1 COMPLETE
    Natural language → STAC search → globe footprints + download links
    Planner (LLM) → STAC Scout (Element84) → Response → WebSocket stream → MapLibre globe
 
-✅ Phase 1 COMPLETE — titiler + COG pixel streaming
-   Click any footprint → Layer Panel → band selector (True Color / Red / NIR / Green / Blue)
+✅ v1 — titiler + COG pixel streaming
+   Click any footprint → band selector (True Color / Red / NIR / Green / Blue / SWIR)
    COG tiles stream from titiler :8001 into MapLibre raster layers
    Per-layer: toggle visibility · opacity slider · remove
-   make dev now starts: backend :8000 + titiler :8001 + frontend :5173
+
+✅ v2 COMPLETE
+   Full-screen SceneDrawer: click any footprint → isolated popup with own MapLibre map
+   Left panel: scene metadata · loaded layers with eye toggle · add bands · download links
+   Flood mapping: "Show flood extent over X" → MNDWI GeoTIFF → blue overlay streamed live
+   Conversation history: follow-up queries resolve from prior turns (history in every WS message)
+   Geocoding fallback: Nominatim lookup when LLM returns null bbox
+   Ollama-native: zero API keys required — gemma4, nemotron, qwen3 all work out of the box
+   make dev starts: backend :8000 + titiler :8001 + frontend :5173
 ```
 
 ---
@@ -41,7 +49,7 @@ flowchart LR
 
 ## Build Phases
 
-### Phase 1 — See Actual Pixels ✅ COMPLETE
+### v1 Phase 1 — See Actual Pixels ✅ COMPLETE
 *titiler + COG streaming*
 
 ```mermaid
@@ -60,7 +68,7 @@ flowchart TD
 
 ---
 
-### Phase 2 — ml-intern Integration
+### v3 Phase 2 — ml-intern Integration
 *Auto-discover models for new task types*
 
 When Atlas encounters a task it has never seen, it should not fail — it should search.
@@ -81,7 +89,7 @@ flowchart TD
 
 ---
 
-### Phase 3 — Tool Registry
+### v4 Phase 3 — Tool Registry
 *Community publishes tools. Atlas discovers them.*
 
 ```mermaid
@@ -122,7 +130,7 @@ tool: "lulc-sentinel2-india"
 
 ---
 
-### Phase 4 — Feedback Loop + Self-Improvement
+### v5 Phase 4 — Feedback Loop + Self-Improvement
 *Users correct outputs → corrections accumulate → tool owners fine-tune → new version*
 
 ```mermaid
@@ -427,13 +435,17 @@ Different communities own different categories:
 ## Summary
 
 ```
-Phase 1 ✅ titiler + pixel viewing          stream COG tiles, band selector, layer panel
-Phase 2   Prithvi flood mapping tool       first ML inference @atlas_tool (HF, no GPU)
-Phase 3   ml-intern integration            auto-discover HF models for new task types
-Phase 4   Tool Registry v1                 community submits tools via PR
-Phase 5   Feedback collection API          store user corrections per tool
-Phase 6   Task memory                      skip training when job was done before
-Phase 7   Interactive correction loop      human-in-the-loop LangGraph node
-Phase 8   Fine-tune trigger                tool owners notified, AutoTrain integration
-Phase 9   Tool Registry hosted             public, versioned, browsable in Atlas UI
+v1 ✅  STAC search + globe footprints      natural language → satellite imagery
+v1 ✅  titiler + pixel viewing             stream COG tiles, band selector, layer toggle
+v2 ✅  SceneDrawer + flood mapping         full-screen scene popup, MNDWI flood extent
+v2 ✅  Conversation history               follow-up queries resolve from prior context
+v2 ✅  Ollama-native / zero keys          gemma4, nemotron, qwen3 out of the box
+v3    Burn scar tool (NBR)               same pipeline as flood, ~1 day to add
+v3    ml-intern integration              auto-discover HF models for new task types
+v4    Tool Registry v1                   community submits tools via PR
+v5    Feedback collection API            store user corrections per tool
+v6    Task memory                        skip inference when job was done before
+v7    Interactive correction loop        human-in-the-loop LangGraph node
+v8    Fine-tune trigger                  tool owners notified, AutoTrain integration
+v9    Tool Registry hosted               public, versioned, browsable in Atlas UI
 ```
