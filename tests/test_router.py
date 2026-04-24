@@ -18,9 +18,11 @@ def test_unknown_agent_falls_back_to_default():
 
 
 def test_ollama_prefix_instantiates_chat_ollama():
+    mock_ollama_module = MagicMock()
+    mock_cls = MagicMock()
+    mock_ollama_module.ChatOllama = mock_cls
     with patch("atlas.models.router._resolve_model_id", return_value="ollama/nemotron-3-nano:30b-cloud"):
-        with patch("langchain_ollama.ChatOllama") as mock_cls:
-            mock_cls.return_value = MagicMock()
+        with patch.dict("sys.modules", {"langchain_ollama": mock_ollama_module}):
             get_llm("planner")
             mock_cls.assert_called_once()
             assert mock_cls.call_args.kwargs["model"] == "nemotron-3-nano:30b-cloud"
