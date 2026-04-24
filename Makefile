@@ -12,14 +12,18 @@ install:
 	cd frontend && npm install
 
 dev:
-	@echo "Starting Atlas backend + frontend..."
+	@echo "Starting Atlas backend + titiler + frontend..."
 	@trap 'kill 0' EXIT; \
 	$(MAMBA) uvicorn atlas.main:app --reload --host 0.0.0.0 --port 8000 & \
+	$(MAMBA) uvicorn titiler.application.main:app --host 0.0.0.0 --port 8001 & \
 	cd frontend && npm run dev & \
 	wait
 
 backend:
 	$(MAMBA) uvicorn atlas.main:app --reload --host 0.0.0.0 --port 8000
+
+titiler:
+	$(MAMBA) uvicorn titiler.application.main:app --host 0.0.0.0 --port 8001
 
 frontend:
 	cd frontend && npm run dev

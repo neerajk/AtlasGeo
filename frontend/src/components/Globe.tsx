@@ -2,12 +2,13 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { GeoJsonLayer } from '@deck.gl/layers'
-import type { GeoJsonFeature } from '../types'
+import type { GeoJsonFeature, CogLayer } from '../types'
 
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 interface GlobeProps {
   features: GeoJsonFeature[]
+  cogLayers: CogLayer[]
   onFeatureClick?: (feature: GeoJsonFeature) => void
 }
 
@@ -26,10 +27,11 @@ const FREE_STYLE = {
   layers: [{ id: 'esri-imagery', type: 'raster' as const, source: 'esri' }],
 }
 
-export function Globe({ features, onFeatureClick }: GlobeProps) {
+export function Globe({ features, cogLayers, onFeatureClick }: GlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const overlayRef = useRef<MapboxOverlay | null>(null)
+  const mapReadyRef = useRef(false)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -47,15 +49,19 @@ export function Globe({ features, onFeatureClick }: GlobeProps) {
     const overlay = new MapboxOverlay({ layers: [] })
     map.addControl(overlay as unknown as maplibregl.IControl)
 
+    map.on('load', () => { mapReadyRef.current = true })
+
     mapRef.current = map
     overlayRef.current = overlay
 
     return () => {
+      mapReadyRef.current = false
       overlay.finalize()
       map.remove()
     }
   }, [])
 
+  // Sync footprint deck.gl layer
   useEffect(() => {
     if (!overlayRef.current) return
 
@@ -99,6 +105,77 @@ export function Globe({ features, onFeatureClick }: GlobeProps) {
       }
     }
   }, [features, onFeatureClick])
+
+  // Sync COG raster layers into MapLibre
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    const apply = () => {
+      const existingSources = new Set<string>()
+      const existingLayers = new Set<string>()
+
+      // Track what's currently on the map
+      const style = map.getStyle()
+      if (style?.sources) {
+        Object.keys(style.sources).forEach((id) => {
+          if (id.startsWith('cog-')) existingSources.add(id)
+        })
+      }
+      if (style?.layers) {
+        style.layers.forEach((l) => {
+          if (l.id.startsWith('cog-')) existingLayers.add(l.id)
+        })
+      }
+
+      const wantedIds = new Set(cogLayers.map((l) => `cog-${l.id}`))
+
+      // Remove layers/sources that are no longer wanted
+      existingLayers.forEach((lid) => {
+        if (!wantedIds.has(lid)) {
+          if (map.getLayer(lid)) map.removeLayer(lid)
+        }
+      })
+      existingSources.forEach((sid) => {
+        if (!wantedIds.has(sid)) {
+          if (map.getSource(sid)) map.removeSource(sid)
+        }
+      })
+
+      // Add or update layers in order (bottom = first in array)
+      cogLayers.forEach((cog) => {
+        const srcId = `cog-${cog.id}`
+        const layId = `cog-${cog.id}`
+
+        if (!map.getSource(srcId)) {
+          map.addSource(srcId, {
+            type: 'raster',
+            tiles: [cog.tileUrl],
+            tileSize: 512,
+          })
+        }
+
+        if (!map.getLayer(layId)) {
+          map.addLayer({
+            id: layId,
+            type: 'raster',
+            source: srcId,
+            paint: {
+              'raster-opacity': cog.visible ? cog.opacity : 0,
+            },
+          })
+        } else {
+          map.setPaintProperty(layId, 'raster-opacity', cog.visible ? cog.opacity : 0)
+        }
+      })
+    }
+
+    if (mapReadyRef.current) {
+      apply()
+    } else {
+      mapRef.current?.once('load', apply)
+    }
+  }, [cogLayers])
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 }

@@ -24,6 +24,16 @@ export interface WsMessage {
   features?: GeoJsonFeature[]  // geojson
 }
 
+export interface CogLayer {
+  id: string
+  name: string
+  sceneId: string
+  band: string
+  tileUrl: string
+  visible: boolean
+  opacity: number
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'

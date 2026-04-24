@@ -1,4 +1,10 @@
 services:
+  titiler:
+    image: ghcr.io/developmentseed/titiler:latest
+    ports:
+      - "8001:8000"
+    restart: unless-stopped
+
   backend:
     build:
       context: .
