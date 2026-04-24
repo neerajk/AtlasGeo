@@ -162,13 +162,14 @@ ATLAS_MODEL_PLANNER=anthropic/claude-opus-4-7 make dev
 
 ```
 ✅ L1 — Natural language → STAC search → globe footprints + download links
-⬜ L2 — Live raster analysis: NDVI, SWIR composites, reprojection
-⬜ L2 — titiler dynamic tile server (see actual pixels, not just footprints)
-⬜ L2 — Clay Foundation Model vision validation
-⬜ L3 — Auth + saved workflows (Atlas Books)
-⬜ L3 — Public API
-⬜ L3 — Tool marketplace
+⬜ L2 — titiler: see actual pixels, not just footprints
+⬜ L2 — ml-intern: auto-discover HuggingFace models for new task types
+⬜ L3 — Community Tool Registry: developers publish @atlas_tool functions
+⬜ L3 — Self-improving feedback loop: user corrections → fine-tune → new version
+⬜ L4 — Full GeoAI platform: LULC, flood mapping, object detection, OSINT, and more
 ```
+
+Full roadmap with architecture diagrams, all task categories, ready-to-use models, and community design: **[ROADMAP.md](ROADMAP.md)**
 
 ---
 
