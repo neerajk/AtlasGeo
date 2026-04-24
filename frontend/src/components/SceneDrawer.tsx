@@ -7,17 +7,20 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 const TITILER_URL = import.meta.env.VITE_TITILER_URL ?? 'http://localhost:8001'
 
 const BANDS = [
-  { key: 'visual',  label: 'True Color', color: '#c8c8c8', rescale: '0,3000' },
-  { key: 'red',     label: 'Red',        color: '#e05050', rescale: '0,3000' },
-  { key: 'nir',     label: 'NIR',        color: '#9040d0', rescale: '0,5000' },
-  { key: 'green',   label: 'Green',      color: '#3db860', rescale: '0,3000' },
-  { key: 'blue',    label: 'Blue',       color: '#4090e0', rescale: '0,3000' },
-  { key: 'swir16',  label: 'SWIR1',      color: '#e07830', rescale: '0,3000' },
+  // visual is an 8-bit TCI (pre-rendered by ESA) — rescale to 0,255, no gamma needed
+  { key: 'visual',  label: 'True Color', color: '#c8c8c8', rescale: '0,255',  gamma: false },
+  // 16-bit surface reflectance bands — floor at 100 to cut nodata shadow noise
+  { key: 'red',     label: 'Red',        color: '#e05050', rescale: '100,3000', gamma: true },
+  { key: 'nir',     label: 'NIR',        color: '#9040d0', rescale: '100,5000', gamma: true },
+  { key: 'green',   label: 'Green',      color: '#3db860', rescale: '100,3000', gamma: true },
+  { key: 'blue',    label: 'Blue',       color: '#4090e0', rescale: '100,3000', gamma: true },
+  { key: 'swir16',  label: 'SWIR1',      color: '#e07830', rescale: '100,3000', gamma: true },
 ]
 
 const BAND_COLOR: Record<string, string> = {
   ...Object.fromEntries(BANDS.map((b) => [b.key, b.color])),
-  flood: '#30b8e8', swir22: '#d05a20',
+  flood: '#30b8e8', swir22: '#d05a20', burn_scar: '#e04020',
+  ndvi: '#3db860', ndwi: '#3090e0', ndbi: '#e07830',
 }
 const bandColor = (band: string) => BAND_COLOR[band] ?? '#6060a0'
 
@@ -33,8 +36,9 @@ const MAP_STYLE = {
   layers: [{ id: 'esri-imagery', type: 'raster' as const, source: 'esri' }],
 }
 
-function buildTileUrl(href: string, rescale: string) {
-  return `${TITILER_URL}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodeURIComponent(href)}&rescale=${rescale}`
+function buildTileUrl(href: string, rescale: string, gamma = false) {
+  const base = `${TITILER_URL}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodeURIComponent(href)}&rescale=${rescale}`
+  return gamma ? `${base}&color_formula=gamma+R+1.7` : base
 }
 
 function featureBbox(feat: GeoJsonFeature): [[number, number], [number, number]] | null {
@@ -136,13 +140,13 @@ function PopupContent({
     if (mapRef.current && readyRef.current) syncCogLayers(mapRef.current, cogLayers)
   }, [cogLayers])
 
-  const handleLoad = (bandKey: string, bandLabel: string, rescale: string) => {
+  const handleLoad = (bandKey: string, bandLabel: string, rescale: string, gamma: boolean) => {
     const href = feature.properties.download_links[bandKey]
     if (!href) return
     const id = `${feature.properties.id}-${bandKey}`
     if (loadedIds.has(id)) return
     onAddLayer({ id, name: bandLabel, sceneId: feature.properties.id, band: bandKey,
-      tileUrl: buildTileUrl(href, rescale), visible: true, opacity: 1 })
+      tileUrl: buildTileUrl(href, rescale, gamma), visible: true, opacity: 1 })
   }
 
   const dateStr = feature.properties.datetime
@@ -202,7 +206,7 @@ function PopupContent({
 
           {/* 3. Add layer */}
           <Section title="Add Layer">
-            {BANDS.map(({ key, label, color, rescale }) => {
+            {BANDS.map(({ key, label, color, rescale, gamma }) => {
               const available = !!feature.properties.download_links[key]
               const loaded    = loadedIds.has(`${feature.properties.id}-${key}`)
               return (
@@ -213,7 +217,7 @@ function PopupContent({
                   {loaded
                     ? <span style={s.loadedTag}>✓</span>
                     : available
-                    ? <button onClick={() => handleLoad(key, label, rescale)} style={s.addBtn}>+ Add</button>
+                    ? <button onClick={() => handleLoad(key, label, rescale, gamma)} style={s.addBtn}>+ Add</button>
                     : <span style={s.unavail}>—</span>
                   }
                 </div>

@@ -10,10 +10,20 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 interface GlobeProps {
   features: GeoJsonFeature[]
   cogLayers: CogLayer[]
+  pickerMode: { taskType: string } | null
+  onSceneSelect: (sceneId: string) => void
   onAddLayer:      (layer: CogLayer) => void
   onToggleLayer:   (id: string) => void
   onOpacityChange: (id: string, opacity: number) => void
   onRemoveLayer:   (id: string) => void
+}
+
+const TASK_LABELS: Record<string, string> = {
+  ndvi: 'NDVI',
+  ndwi: 'NDWI',
+  ndbi: 'NDBI',
+  flood_mapping: 'Flood Mapping',
+  burn_scar: 'Burn Scar',
 }
 
 const FREE_STYLE = {
@@ -31,13 +41,20 @@ const FREE_STYLE = {
   layers: [{ id: 'esri-imagery', type: 'raster' as const, source: 'esri' }],
 }
 
-export function Globe({ features, cogLayers, onAddLayer, onToggleLayer, onOpacityChange, onRemoveLayer }: GlobeProps) {
+export function Globe({ features, cogLayers, pickerMode, onSceneSelect, onAddLayer, onToggleLayer, onOpacityChange, onRemoveLayer }: GlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef       = useRef<maplibregl.Map | null>(null)
   const overlayRef   = useRef<MapboxOverlay | null>(null)
   const mapReadyRef  = useRef(false)
+  // Refs so deck.gl callbacks always get fresh values without layer recreation
+  const pickerModeRef   = useRef(pickerMode)
+  const onSceneSelectRef = useRef(onSceneSelect)
 
   const [selectedFeature, setSelectedFeature] = useState<GeoJsonFeature | null>(null)
+
+  // Keep refs in sync
+  useEffect(() => { pickerModeRef.current = pickerMode }, [pickerMode])
+  useEffect(() => { onSceneSelectRef.current = onSceneSelect }, [onSceneSelect])
 
   // Map init
   useEffect(() => {
@@ -68,35 +85,70 @@ export function Globe({ features, cogLayers, onAddLayer, onToggleLayer, onOpacit
     }
   }, [])
 
-  // Sync deck.gl footprint layer
+  // Sync deck.gl footprint layer + tooltip (re-runs on features OR picker mode change)
   useEffect(() => {
     if (!overlayRef.current) return
-    overlayRef.current.setProps({
-      layers: [new GeoJsonLayer({
-        id: 'stac-footprints',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { type: 'FeatureCollection' as const, features } as any,
-        filled: true,
-        stroked: true,
-        getFillColor: [64, 160, 255, 35],
-        getLineColor: [64, 160, 255, 220],
-        getLineWidth: 2,
-        lineWidthMinPixels: 1,
-        pickable: true,
-        autoHighlight: true,
-        highlightColor: [255, 200, 64, 80],
-        onClick: ({ object }) => {
-          if (!object) return
-          const feat = object as GeoJsonFeature
+
+    const isPickerActive = !!pickerMode
+
+    const layer = new GeoJsonLayer({
+      id: 'stac-footprints',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data: { type: 'FeatureCollection' as const, features } as any,
+      filled: true,
+      stroked: true,
+      getFillColor: isPickerActive ? [255, 165, 0, 45] : [64, 160, 255, 35],
+      getLineColor: isPickerActive ? [255, 165, 0, 220] : [64, 160, 255, 220],
+      getLineWidth: isPickerActive ? 3 : 2,
+      lineWidthMinPixels: 1,
+      pickable: true,
+      autoHighlight: true,
+      highlightColor: isPickerActive ? [255, 200, 0, 100] : [255, 200, 64, 80],
+      onClick: ({ object }) => {
+        if (!object) return
+        const feat = object as GeoJsonFeature
+        if (pickerModeRef.current) {
+          onSceneSelectRef.current(feat.properties.id)
+        } else {
           setSelectedFeature((prev) =>
             prev?.properties.id === feat.properties.id ? null : feat
           )
-        },
-      })],
+        }
+      },
     })
-  }, [features])
 
-  // Fly to results (separate so it doesn't re-fire on inspectMode toggle)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const getTooltip = isPickerActive ? (({ object }: any) => {
+      if (!object) return null
+      const p = (object as GeoJsonFeature).properties
+      const date = (p.datetime || '').slice(0, 10)
+      const cloud = p.cloud_cover != null ? p.cloud_cover.toFixed(1) + '%' : '?'
+      return {
+        html: `
+          <div>
+            <strong style="display:block;margin-bottom:4px;font-size:12px;color:#94c4ff">${p.id}</strong>
+            <span>📅 ${date}</span><br/>
+            <span>☁️ ${cloud} cloud cover</span><br/>
+            <span style="color:#86efac;font-size:11px;margin-top:4px;display:block">Click to select</span>
+          </div>
+        `,
+        style: {
+          background: '#1e1e2e',
+          color: '#cbd5e1',
+          border: '1px solid #3a3a5a',
+          borderRadius: '8px',
+          fontSize: '13px',
+          lineHeight: '1.6',
+          padding: '8px 12px',
+          pointerEvents: 'none',
+        },
+      }
+    }) : null
+
+    overlayRef.current.setProps({ layers: [layer], getTooltip })
+  }, [features, pickerMode])
+
+  // Fly to results (separate so it doesn't re-fire on picker mode toggle)
   useEffect(() => {
     if (!features.length) return
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
@@ -173,9 +225,22 @@ export function Globe({ features, cogLayers, onAddLayer, onToggleLayer, onOpacit
     }
   }, [cogLayers])
 
+  const taskLabel = pickerMode ? (TASK_LABELS[pickerMode.taskType] || pickerMode.taskType) : ''
+
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      <div
+        ref={containerRef}
+        style={{ width: '100%', height: '100%', cursor: pickerMode ? 'crosshair' : undefined }}
+      />
+
+      {pickerMode && (
+        <div style={pickerBannerStyle}>
+          <span style={{ fontSize: 14 }}>🎯</span>
+          <span>Click a scene footprint to run <strong>{taskLabel}</strong> analysis</span>
+        </div>
+      )}
+
       <SceneDrawer
         feature={selectedFeature}
         cogLayers={cogLayers}
@@ -187,4 +252,24 @@ export function Globe({ features, cogLayers, onAddLayer, onToggleLayer, onOpacit
       />
     </div>
   )
+}
+
+const pickerBannerStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: 12,
+  left: '50%',
+  transform: 'translateX(-50%)',
+  background: 'rgba(26, 42, 26, 0.92)',
+  border: '1px solid #3a6a3a',
+  borderRadius: 10,
+  padding: '8px 18px',
+  color: '#86efac',
+  fontSize: 13,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  pointerEvents: 'none',
+  backdropFilter: 'blur(4px)',
+  whiteSpace: 'nowrap',
+  zIndex: 10,
 }

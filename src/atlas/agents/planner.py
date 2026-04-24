@@ -32,7 +32,12 @@ Rules:
 - date_range: resolve relative expressions like "last month", "this week" using today={today}. "last month" means the calendar month before today.
 - cloud_cover_max: default 20, higher if user says "cloudy" or "any"
 - max_results: default 10
-- task_type: one of "stac_search" (default) or "flood_mapping". Use "flood_mapping" when the query mentions flood, flooding, inundation, water extent, deluge, or submerged land.
+- task_type: one of "stac_search" (default), "flood_mapping", "burn_scar", "ndvi", "ndwi", or "ndbi".
+  Use "flood_mapping" for flood, flooding, inundation, water extent, deluge, submerged land.
+  Use "burn_scar" for fire, wildfire, burn, burnt, burned area, NBR.
+  Use "ndvi" for vegetation index, plant health, greenness, NDVI, crop monitoring.
+  Use "ndwi" for water body detection, lake, river extent, NDWI, surface water.
+  Use "ndbi" for built-up index, urbanisation, urban extent, NDBI, impervious surface.
 
 User query: {query}
 
@@ -121,6 +126,20 @@ async def planner_node(state: AtlasState) -> dict:
         flood_keywords = {"flood", "flooding", "inundation", "inundated", "water extent", "submerged", "deluge"}
         if any(kw in query.lower() for kw in flood_keywords):
             params["task_type"] = "flood_mapping"
+
+    if params["task_type"] == "stac_search":
+        burn_keywords = {"fire", "wildfire", "burn", "burnt", "burned", "burn scar", "nbr"}
+        if any(kw in query.lower() for kw in burn_keywords):
+            params["task_type"] = "burn_scar"
+
+    if params["task_type"] == "stac_search":
+        q = query.lower()
+        if any(kw in q for kw in {"ndvi", "vegetation index", "plant health", "greenness", "crop health"}):
+            params["task_type"] = "ndvi"
+        elif any(kw in q for kw in {"ndwi", "water body", "water index", "surface water", "lake extent", "river extent"}):
+            params["task_type"] = "ndwi"
+        elif any(kw in q for kw in {"ndbi", "built-up index", "urbanisation", "urbanization", "urban extent", "impervious"}):
+            params["task_type"] = "ndbi"
 
     print(f"[planner] done — params: {params}")
     return {"search_params": params}

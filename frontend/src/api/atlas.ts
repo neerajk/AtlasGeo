@@ -4,6 +4,10 @@ const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/chat'
 
 type MessageHandler = (msg: WsMessage) => void
 
+type SendPayload =
+  | { query: string; history?: Array<{ role: string; content: string }> }
+  | { type: 'run_analysis'; scene_id: string; task_type: string }
+
 export class AtlasSocket {
   private ws: WebSocket | null = null
   private handlers: Set<MessageHandler> = new Set()
@@ -37,7 +41,7 @@ export class AtlasSocket {
     this.ws?.close()
   }
 
-  send(payload: { query: string; history?: Array<{ role: string; content: string }> }) {
+  send(payload: SendPayload) {
     if (this.ws?.readyState !== WebSocket.OPEN) {
       this.connect()
       this.ws!.addEventListener('open', () => this._send(payload), { once: true })
@@ -46,7 +50,7 @@ export class AtlasSocket {
     }
   }
 
-  private _send(payload: { query: string; history?: Array<{ role: string; content: string }> }) {
+  private _send(payload: SendPayload) {
     this.ws?.send(JSON.stringify(payload))
   }
 

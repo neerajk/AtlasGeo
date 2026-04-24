@@ -25,9 +25,20 @@ function resolveTifLayer(msg: TifLayerMsg): CogLayer {
   }
 }
 
+const TASK_LABELS: Record<string, string> = {
+  ndvi: 'NDVI vegetation analysis',
+  ndwi: 'NDWI water index analysis',
+  ndbi: 'NDBI built-up analysis',
+  flood_mapping: 'flood mapping',
+  burn_scar: 'burn scar mapping',
+}
+
 interface ChatPanelProps {
   onFeatures: (features: GeoJsonFeature[]) => void
   onTifLayers: (layers: CogLayer[]) => void
+  pickerMode: boolean
+  onScenePicker: (taskType: string) => void
+  onPickerCancel: () => void
 }
 
 let msgCounter = 0
@@ -36,10 +47,10 @@ const uid = () => String(++msgCounter)
 const EXAMPLES = [
   'Show Sentinel-2 images over Nairobi, Kenya from last month',
   'Find clear scenes over the Amazon rainforest with less than 5% cloud cover',
-  'Sentinel-2 imagery over Mumbai, India in March 2024',
+  'NDBI analysis over Mumbai, India in March 2024',
 ]
 
-export function ChatPanel({ onFeatures, onTifLayers }: ChatPanelProps) {
+export function ChatPanel({ onFeatures, onTifLayers, pickerMode, onScenePicker, onPickerCancel }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [steps, setSteps] = useState<Step[]>([])
   const [input, setInput] = useState('')
@@ -75,6 +86,24 @@ export function ChatPanel({ onFeatures, onTifLayers }: ChatPanelProps) {
         }
         break
 
+      case 'scene_picker': {
+        const taskType = msg.task_type || 'analysis'
+        const label = TASK_LABELS[taskType] || taskType
+        const n = msg.scene_count ?? 0
+        setSteps([])
+        setMessages(prev => [
+          ...prev,
+          {
+            id: uid(),
+            role: 'assistant',
+            content: `Found **${n} scene${n !== 1 ? 's' : ''}**. Click a scene on the map to run **${label}**.`,
+          },
+        ])
+        onScenePicker(taskType)
+        setBusy(false)
+        break
+      }
+
       case 'message':
         setSteps([])
         setMessages(prev => [
@@ -97,11 +126,11 @@ export function ChatPanel({ onFeatures, onTifLayers }: ChatPanelProps) {
         setBusy(false)
         break
     }
-  }, [onFeatures, onTifLayers])
+  }, [onFeatures, onTifLayers, onScenePicker])
 
   const send = useCallback(() => {
     const q = input.trim()
-    if (!q || busy) return
+    if (!q || busy || pickerMode || steps.length > 0) return
     setInput('')
     setBusy(true)
     setSteps([])
@@ -110,7 +139,9 @@ export function ChatPanel({ onFeatures, onTifLayers }: ChatPanelProps) {
       history: messages.map(m => ({ role: m.role, content: m.content })),
     })
     setMessages(prev => [...prev, { id: uid(), role: 'user', content: q }])
-  }, [input, busy, messages])
+  }, [input, busy, pickerMode, steps, messages])
+
+  const isDisabled = busy || pickerMode || steps.length > 0
 
   return (
     <div style={styles.panel}>
@@ -163,23 +194,30 @@ export function ChatPanel({ onFeatures, onTifLayers }: ChatPanelProps) {
         <div ref={bottomRef} />
       </div>
 
-      <div style={styles.inputRow}>
-        <input
-          style={{ ...styles.input, opacity: busy ? 0.65 : 1 }}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
-          placeholder={busy ? 'Processing…' : 'Ask about satellite imagery…'}
-          disabled={busy}
-        />
-        <button
-          style={{ ...styles.sendBtn, opacity: busy ? 0.45 : 1, cursor: busy ? 'not-allowed' : 'pointer' }}
-          onClick={send}
-          disabled={busy}
-        >
-          {busy ? <span className="atlas-spinner" style={{ borderColor: '#1a3a5f', borderTopColor: '#fff' }} /> : '→'}
-        </button>
-      </div>
+      {pickerMode ? (
+        <div style={styles.pickerBar}>
+          <span style={styles.pickerText}>Click a scene on the map to run analysis</span>
+          <button style={styles.cancelBtn} onClick={onPickerCancel}>Cancel</button>
+        </div>
+      ) : (
+        <div style={styles.inputRow}>
+          <input
+            style={{ ...styles.input, opacity: isDisabled ? 0.65 : 1 }}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
+            placeholder={busy ? 'Processing…' : 'Ask about satellite imagery…'}
+            disabled={isDisabled}
+          />
+          <button
+            style={{ ...styles.sendBtn, opacity: isDisabled ? 0.45 : 1, cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+            onClick={send}
+            disabled={isDisabled}
+          >
+            {busy ? <span className="atlas-spinner" style={{ borderColor: '#1a3a5f', borderTopColor: '#fff' }} /> : '→'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -205,4 +243,7 @@ const styles: Record<string, React.CSSProperties> = {
   inputRow:       { padding: 12, borderTop: '1px solid #2a2a3a', display: 'flex', gap: 8, alignItems: 'center' },
   input:          { flex: 1, background: '#1e1e2e', border: '1px solid #2a2a3a', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 14, outline: 'none' },
   sendBtn:        { background: '#40a0ff', border: 'none', borderRadius: 8, padding: '0 18px', height: 40, color: '#fff', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 44 },
+  pickerBar:      { padding: '12px 16px', borderTop: '1px solid #2a2a3a', background: '#1a2a1a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  pickerText:     { fontSize: 13, color: '#86efac', flex: 1 },
+  cancelBtn:      { background: 'transparent', border: '1px solid #475569', borderRadius: 6, padding: '4px 12px', color: '#94a3b8', fontSize: 12, cursor: 'pointer' },
 }

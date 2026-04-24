@@ -27,7 +27,7 @@ export interface TifLayerMsg {
   floodAreaKm2?: number
 }
 
-export type WsMessageType = 'thinking' | 'geojson' | 'message' | 'error' | 'done' | 'tif_layers'
+export type WsMessageType = 'thinking' | 'geojson' | 'message' | 'error' | 'done' | 'tif_layers' | 'scene_picker'
 
 export interface WsMessage {
   type: WsMessageType
@@ -35,6 +35,8 @@ export interface WsMessage {
   content?: string          // message (markdown)
   features?: GeoJsonFeature[]  // geojson
   tif_layers?: TifLayerMsg[]   // analysis outputs
+  task_type?: string        // scene_picker
+  scene_count?: number      // scene_picker
 }
 
 export interface CogLayer {
