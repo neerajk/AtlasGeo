@@ -7,8 +7,12 @@ Method: Normalised Burn Ratio
 
 Healthy vegetation has NBR 0.3–0.8; burn scars drop to -0.5 or lower.
 Default threshold 0.2 catches moderate-to-high severity scars.
+
+Note: single-image NBR can misclassify bare soil or dark rock as burned.
+For higher accuracy use dNBR (pre/post image pair) when available.
 """
 
+import math
 import os
 from pathlib import Path
 
@@ -26,6 +30,9 @@ os.environ.setdefault("AWS_NO_SIGN_REQUEST", "YES")
 _OUTPUT_DIR = Path(__file__).parent.parent.parent / "outputs"
 
 TARGET_SIZE = 512
+
+# SCL classes that indicate cloud, shadow, or no-data — masked before analysis
+_SCL_MASK_CLASSES = {0, 1, 3, 8, 9, 10}
 
 
 def _read_band(href: str) -> tuple[np.ndarray, dict]:
@@ -58,6 +65,26 @@ def _read_band(href: str) -> tuple[np.ndarray, dict]:
     return data, profile
 
 
+def _read_scl_mask(href: str) -> np.ndarray | None:
+    """Read SCL band and return boolean cloud/shadow mask (True = bad pixel)."""
+    try:
+        with rasterio.open(href) as src:
+            scl = src.read(
+                1,
+                out_shape=(TARGET_SIZE, TARGET_SIZE),
+                resampling=Resampling.nearest,
+            )
+        mask = np.zeros(scl.shape, dtype=bool)
+        for cls in _SCL_MASK_CLASSES:
+            mask |= (scl == cls)
+        pct = mask.mean() * 100
+        print(f"[burn_scar] SCL mask: {pct:.1f}% pixels masked as cloud/shadow")
+        return mask
+    except Exception as exc:
+        print(f"[burn_scar] SCL read failed ({exc}) — skipping cloud mask")
+        return None
+
+
 @atlas_tool(
     name="burn_scar_mapping",
     description=(
@@ -72,6 +99,7 @@ def burn_scar_mapping(
     swir22_href: str,
     bbox: list,
     threshold: float = 0.2,
+    scl_href: str | None = None,
 ) -> dict:
     """
     Args:
@@ -80,6 +108,7 @@ def burn_scar_mapping(
         swir22_href: COG URL for B12 (SWIR2 band)
         bbox:        [minx, miny, maxx, maxy] in WGS84
         threshold:   NBR threshold below which pixels are classed as burned (default 0.2)
+        scl_href:    Optional COG URL for SCL band — used to mask clouds and shadows
     """
     _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = _OUTPUT_DIR / f"{scene_id}_burn_scar.tif"
@@ -90,6 +119,12 @@ def burn_scar_mapping(
     print(f"[burn_scar] reading SWIR2 from {swir22_href}")
     swir22, _ = _read_band(swir22_href)
 
+    if scl_href:
+        cloud_mask = _read_scl_mask(scl_href)
+        if cloud_mask is not None:
+            nir[cloud_mask] = np.nan
+            swir22[cloud_mask] = np.nan
+
     # NBR = (NIR - SWIR2) / (NIR + SWIR2)
     denom = nir + swir22
     denom[denom == 0] = np.nan
@@ -98,8 +133,13 @@ def burn_scar_mapping(
     burn_mask = np.where(np.isnan(nbr), 0, (nbr < threshold).astype(np.uint8))
 
     burn_pixels = int(burn_mask.sum())
-    # Sentinel-2 B12 at 20m resolution → each pixel ≈ 0.0004 km²
-    burn_area_km2 = round(burn_pixels * 0.0004, 2)
+    # Pixel area derived from the resampled transform (not hardcoded native resolution).
+    # Bands vary: NIR = 10m native, SWIR2 = 20m native; both are resampled to TARGET_SIZE,
+    # so actual pixel footprint depends on scene bbox extent and latitude.
+    t = profile["transform"]
+    center_lat = t.f + (TARGET_SIZE / 2) * t.e
+    px_km2 = (abs(t.a) * 111.0 * math.cos(math.radians(abs(center_lat)))) * (abs(t.e) * 111.0)
+    burn_area_km2 = round(burn_pixels * px_km2, 2)
 
     print(f"[burn_scar] writing output → {out_path} ({burn_pixels} burned px, ~{burn_area_km2} km²)")
     with rasterio.open(out_path, "w", **profile) as dst:

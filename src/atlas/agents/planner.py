@@ -115,6 +115,29 @@ async def planner_node(state: AtlasState) -> dict:
             params["date_range"] = [start.strftime("%Y-%m-%d"), date_range[1]]
             print(f"[planner] expanded single-day range to 30 days: {params['date_range']}")
 
+    # Validate and sanitise bbox
+    bbox = params.get("bbox", [])
+    if isinstance(bbox, list) and len(bbox) == 4:
+        try:
+            minx, miny, maxx, maxy = [float(v) for v in bbox]
+            # Clamp to WGS84 bounds
+            minx = max(-180.0, min(180.0, minx))
+            maxx = max(-180.0, min(180.0, maxx))
+            miny = max(-90.0,  min(90.0,  miny))
+            maxy = max(-90.0,  min(90.0,  maxy))
+            # Swap if inverted
+            if minx > maxx:
+                minx, maxx = maxx, minx
+            if miny > maxy:
+                miny, maxy = maxy, miny
+            params["bbox"] = [minx, miny, maxx, maxy]
+        except (TypeError, ValueError) as e:
+            print(f"[planner] bbox sanitise failed ({e}) — geocoding instead")
+            params.pop("bbox", None)
+            location = params.get("location_name") or query
+            geocoded = await asyncio.to_thread(_geocode, location)
+            params["bbox"] = geocoded or [-180.0, -90.0, 180.0, 90.0]
+
     params.setdefault("collection", "sentinel-2-l2a")
     params.setdefault("cloud_cover_max", 20)
     params.setdefault("max_results", 10)

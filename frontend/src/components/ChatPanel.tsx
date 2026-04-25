@@ -60,8 +60,19 @@ export function ChatPanel({ onFeatures, onTifLayers, pickerMode, onScenePicker, 
   useEffect(() => {
     atlasSocket.connect()
     const unsub = atlasSocket.onMessage(handleWsMessage)
-    return () => { unsub() }
-  }, [])
+    const unsubReconnect = atlasSocket.onReconnect(() => {
+      setBusy(false)
+      setSteps([])
+      if (pickerMode) {
+        onPickerCancel()
+        setMessages(prev => [
+          ...prev,
+          { id: uid(), role: 'assistant', content: '⚠️ Connection lost during scene selection — please re-run your query.' },
+        ])
+      }
+    })
+    return () => { unsub(); unsubReconnect() }
+  }, [pickerMode, onPickerCancel])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })

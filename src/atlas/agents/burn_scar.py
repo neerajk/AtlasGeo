@@ -32,6 +32,7 @@ def _run_burn_scar(stac_results: list[dict], params: dict) -> list[dict]:
         swir22_href=scene["assets"]["swir22"]["href"],
         bbox=scene.get("bbox") or params.get("bbox", []),
         threshold=0.2,
+        scl_href=scene["assets"].get("scl", {}).get("href"),
     )
 
     return [result]

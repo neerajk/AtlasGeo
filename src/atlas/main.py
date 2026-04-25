@@ -1,5 +1,6 @@
 """FastAPI entrypoint with WebSocket chat endpoint."""
 
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -17,6 +18,19 @@ _graph = None
 _OUTPUTS_DIR = Path(__file__).resolve().parent.parent.parent / "outputs"
 
 ANALYSIS_TASKS = {"ndvi", "ndwi", "ndbi", "flood_mapping", "burn_scar"}
+_OUTPUT_TTL_HOURS = 24
+
+
+def _cleanup_old_outputs():
+    """Delete GeoTIFFs older than _OUTPUT_TTL_HOURS from the outputs directory."""
+    cutoff = time.time() - _OUTPUT_TTL_HOURS * 3600
+    removed = 0
+    for f in _OUTPUTS_DIR.glob("*.tif"):
+        if f.stat().st_mtime < cutoff:
+            f.unlink(missing_ok=True)
+            removed += 1
+    if removed:
+        print(f"[startup] cleaned up {removed} output file(s) older than {_OUTPUT_TTL_HOURS}h")
 
 
 @asynccontextmanager
@@ -25,6 +39,7 @@ async def lifespan(app: FastAPI):
     key = settings.openrouter_api_key
     print(f"[startup] OPENROUTER_API_KEY loaded: {bool(key)} | length: {len(key)} | prefix: {key[:6]!r}")
     _OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    _cleanup_old_outputs()
     _graph = build_graph()
     yield
 

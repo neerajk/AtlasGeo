@@ -28,9 +28,12 @@ TARGET_SIZE = 512
 
 INDEX_META: dict[str, dict] = {
     "ndvi": {"name": "NDVI", "colormap": "rdylgn",  "label": "Vegetation Index"},
-    "ndwi": {"name": "NDWI", "colormap": "blues_r",   "label": "Water Index"},
+    "ndwi": {"name": "NDWI", "colormap": "blues_r", "label": "Water Index"},
     "ndbi": {"name": "NDBI", "colormap": "hot_r",   "label": "Built-up Index"},
 }
+
+# SCL classes that indicate cloud, shadow, or no-data — masked before analysis
+_SCL_MASK_CLASSES = {0, 1, 3, 8, 9, 10}
 
 
 def _read_band(href: str) -> tuple[np.ndarray, dict]:
@@ -63,6 +66,26 @@ def _read_band(href: str) -> tuple[np.ndarray, dict]:
     return data, profile
 
 
+def _read_scl_mask(href: str) -> np.ndarray | None:
+    """Read SCL band and return boolean cloud/shadow mask (True = bad pixel)."""
+    try:
+        with rasterio.open(href) as src:
+            scl = src.read(
+                1,
+                out_shape=(TARGET_SIZE, TARGET_SIZE),
+                resampling=Resampling.nearest,
+            )
+        mask = np.zeros(scl.shape, dtype=bool)
+        for cls in _SCL_MASK_CLASSES:
+            mask |= (scl == cls)
+        pct = mask.mean() * 100
+        print(f"[spectral_index] SCL mask: {pct:.1f}% pixels masked as cloud/shadow")
+        return mask
+    except Exception as exc:
+        print(f"[spectral_index] SCL read failed ({exc}) — skipping cloud mask")
+        return None
+
+
 @atlas_tool(
     name="compute_spectral_index",
     description=(
@@ -79,6 +102,7 @@ def compute_spectral_index(
     band1_href: str,
     band2_href: str,
     bbox: list,
+    scl_href: str | None = None,
 ) -> dict:
     """
     Args:
@@ -87,6 +111,7 @@ def compute_spectral_index(
         band1_href:  COG URL for the first band (numerator)
         band2_href:  COG URL for the second band (denominator)
         bbox:        [minx, miny, maxx, maxy] in WGS84
+        scl_href:    Optional COG URL for SCL band — used to mask clouds and shadows
     """
     _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     meta = INDEX_META.get(index_type, INDEX_META["ndvi"])
@@ -97,6 +122,12 @@ def compute_spectral_index(
 
     print(f"[spectral_index] reading band2 ({index_type}) from {band2_href}")
     band2, _ = _read_band(band2_href)
+
+    if scl_href:
+        cloud_mask = _read_scl_mask(scl_href)
+        if cloud_mask is not None:
+            band1[cloud_mask] = np.nan
+            band2[cloud_mask] = np.nan
 
     denom = band1 + band2
     denom[denom == 0] = np.nan

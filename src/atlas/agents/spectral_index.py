@@ -40,6 +40,7 @@ def _run_spectral_index(stac_results: list[dict], params: dict, index_type: str)
         band1_href=scene["assets"][band1_key]["href"],
         band2_href=scene["assets"][band2_key]["href"],
         bbox=scene.get("bbox") or params.get("bbox", []),
+        scl_href=scene["assets"].get("scl", {}).get("href"),
     )
     return [result]
 

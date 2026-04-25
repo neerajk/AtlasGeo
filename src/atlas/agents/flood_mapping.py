@@ -33,6 +33,7 @@ def _run_flood_mapping(stac_results: list[dict], params: dict) -> list[dict]:
         swir1_href=scene["assets"]["swir16"]["href"],
         bbox=scene.get("bbox") or params.get("bbox", []),
         threshold=0.0,
+        scl_href=scene["assets"].get("scl", {}).get("href"),
     )
 
     return [result]

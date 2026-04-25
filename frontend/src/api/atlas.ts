@@ -3,6 +3,7 @@ import type { WsMessage } from '../types'
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/chat'
 
 type MessageHandler = (msg: WsMessage) => void
+type ReconnectHandler = () => void
 
 type SendPayload =
   | { query: string; history?: Array<{ role: string; content: string }> }
@@ -11,6 +12,7 @@ type SendPayload =
 export class AtlasSocket {
   private ws: WebSocket | null = null
   private handlers: Set<MessageHandler> = new Set()
+  private reconnectHandlers: Set<ReconnectHandler> = new Set()
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
   connect() {
@@ -28,6 +30,7 @@ export class AtlasSocket {
     }
 
     this.ws.onclose = () => {
+      this.reconnectHandlers.forEach((h) => h())
       this.reconnectTimer = setTimeout(() => this.connect(), 2000)
     }
 
@@ -57,6 +60,11 @@ export class AtlasSocket {
   onMessage(handler: MessageHandler) {
     this.handlers.add(handler)
     return () => this.handlers.delete(handler)
+  }
+
+  onReconnect(handler: ReconnectHandler) {
+    this.reconnectHandlers.add(handler)
+    return () => this.reconnectHandlers.delete(handler)
   }
 }
 
