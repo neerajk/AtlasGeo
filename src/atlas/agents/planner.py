@@ -32,12 +32,13 @@ Rules:
 - date_range: resolve relative expressions like "last month", "this week" using today={today}. "last month" means the calendar month before today.
 - cloud_cover_max: default 20, higher if user says "cloudy" or "any"
 - max_results: default 10
-- task_type: one of "stac_search" (default), "flood_mapping", "burn_scar", "ndvi", "ndwi", or "ndbi".
+- task_type: one of "stac_search" (default), "flood_mapping", "burn_scar", "ndvi", "ndwi", "ndbi", or "evi".
   Use "flood_mapping" for flood, flooding, inundation, water extent, deluge, submerged land.
   Use "burn_scar" for fire, wildfire, burn, burnt, burned area, NBR.
   Use "ndvi" for vegetation index, plant health, greenness, NDVI, crop monitoring.
   Use "ndwi" for water body detection, lake, river extent, NDWI, surface water.
   Use "ndbi" for built-up index, urbanisation, urban extent, NDBI, impervious surface.
+  Use "evi" for enhanced vegetation index, EVI, canopy health, forest density, dense vegetation.
 
 User query: {query}
 
@@ -157,7 +158,9 @@ async def planner_node(state: AtlasState) -> dict:
 
     if params["task_type"] == "stac_search":
         q = query.lower()
-        if any(kw in q for kw in {"ndvi", "vegetation index", "plant health", "greenness", "crop health"}):
+        if any(kw in q for kw in {"evi", "enhanced vegetation", "canopy health", "forest density"}):
+            params["task_type"] = "evi"
+        elif any(kw in q for kw in {"ndvi", "vegetation index", "plant health", "greenness", "crop health"}):
             params["task_type"] = "ndvi"
         elif any(kw in q for kw in {"ndwi", "water body", "water index", "surface water", "lake extent", "river extent"}):
             params["task_type"] = "ndwi"

@@ -17,7 +17,7 @@ from atlas.state import AtlasState
 _graph = None
 _OUTPUTS_DIR = Path(__file__).resolve().parent.parent.parent / "outputs"
 
-ANALYSIS_TASKS = {"ndvi", "ndwi", "ndbi", "flood_mapping", "burn_scar"}
+ANALYSIS_TASKS = {"ndvi", "ndwi", "ndbi", "evi", "flood_mapping", "burn_scar"}
 _OUTPUT_TTL_HOURS = 24
 
 
@@ -69,7 +69,7 @@ async def _send_tif_result(websocket: WebSocket, task_type: str, output_tifs: li
     if not output_tifs:
         return
 
-    if task_type in {"ndvi", "ndwi", "ndbi"}:
+    if task_type in {"ndvi", "ndwi", "ndbi", "evi"}:
         tif_layers = [
             {
                 "id": f"{t['scene_id']}_{t['index_type']}",
@@ -159,7 +159,7 @@ async def _run_analysis(
 
     label_map = {
         "ndvi": "NDVI vegetation", "ndwi": "NDWI water", "ndbi": "NDBI built-up",
-        "flood_mapping": "flood mapping", "burn_scar": "burn scar",
+        "evi": "EVI vegetation", "flood_mapping": "flood mapping", "burn_scar": "burn scar",
     }
     label = label_map.get(task_type, task_type)
     await websocket.send_json({"type": "thinking", "message": f"Running {label} analysis…"})
@@ -169,7 +169,7 @@ async def _run_analysis(
             result = await flood_mapping_node(state)
         elif task_type == "burn_scar":
             result = await burn_scar_node(state)
-        elif task_type in {"ndvi", "ndwi", "ndbi"}:
+        elif task_type in {"ndvi", "ndwi", "ndbi", "evi"}:
             result = await spectral_index_node(state)
         else:
             result = {}

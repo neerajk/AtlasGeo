@@ -25,6 +25,7 @@ export interface TifLayerMsg {
   visible: boolean
   opacity: number
   floodAreaKm2?: number
+  meanValue?: number
 }
 
 export type WsMessageType = 'thinking' | 'geojson' | 'message' | 'error' | 'done' | 'tif_layers' | 'scene_picker'
@@ -47,6 +48,7 @@ export interface CogLayer {
   tileUrl: string
   visible: boolean
   opacity: number
+  meanValue?: number
 }
 
 export interface ChatMessage {

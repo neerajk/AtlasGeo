@@ -22,6 +22,7 @@ function resolveTifLayer(msg: TifLayerMsg): CogLayer {
       .replace('{BACKEND_URL}', encodeURIComponent(BACKEND_URL)),
     visible: msg.visible,
     opacity: msg.opacity,
+    meanValue: msg.meanValue,
   }
 }
 
@@ -29,6 +30,7 @@ const TASK_LABELS: Record<string, string> = {
   ndvi: 'NDVI vegetation analysis',
   ndwi: 'NDWI water index analysis',
   ndbi: 'NDBI built-up analysis',
+  evi:  'EVI enhanced vegetation analysis',
   flood_mapping: 'flood mapping',
   burn_scar: 'burn scar mapping',
 }
@@ -157,7 +159,12 @@ export function ChatPanel({ onFeatures, onTifLayers, pickerMode, onScenePicker, 
   return (
     <div style={styles.panel}>
       <div style={styles.header}>
-        <span style={styles.logo}>🌍 Atlas GeoAI</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <span style={styles.logo}>🌍 Atlas GeoAI</span>
+          <a href="/docs/index.html" target="_blank" rel="noopener noreferrer" style={styles.docsLink} title="Open documentation">
+            Docs ↗
+          </a>
+        </div>
         <span style={styles.subtitle}>Natural Language Satellite Search</span>
       </div>
 
@@ -238,6 +245,7 @@ const styles: Record<string, React.CSSProperties> = {
   header:         { padding: '16px', borderBottom: '1px solid #2a2a3a' },
   logo:           { fontWeight: 700, fontSize: 16 },
   subtitle:       { display: 'block', fontSize: 12, color: '#64748b', marginTop: 2 },
+  docsLink:       { fontSize: 11, color: '#475569', textDecoration: 'none', border: '1px solid #2a2a3a', borderRadius: 5, padding: '2px 8px', marginTop: 2 },
   messages:       { flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 },
   empty:          { display: 'flex', flexDirection: 'column', gap: 8, marginTop: 24 },
   emptyTitle:     { color: '#64748b', fontSize: 14, marginBottom: 8 },

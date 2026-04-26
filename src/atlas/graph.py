@@ -10,7 +10,7 @@ from atlas.agents import (
 )
 from atlas.tools.loader import load_all_tools
 
-_SPECTRAL_TASKS = {"ndvi", "ndwi", "ndbi"}
+_SPECTRAL_TASKS = {"ndvi", "ndwi", "ndbi", "evi"}
 
 
 def _route_after_stac(state: AtlasState) -> str:

@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atlas GeoAI — Documentation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f0f17;
+      --bg2:       #13131a;
+      --bg3:       #1a1a28;
+      --border:    #2a2a3a;
+      --text:      #cbd5e1;
+      --text-dim:  #64748b;
+      --text-head: #e2e8f0;
+      --accent:    #40a0ff;
+      --accent2:   #86efac;
+      --warning:   #fbbf24;
+      --code-bg:   #16202e;
+      --sidebar-w: 280px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 52px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px;
+    }
+    .topbar-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .topbar-brand span { font-size: 18px; font-weight: 700; color: var(--text-head); }
+    .topbar-brand small { font-size: 12px; color: var(--text-dim); background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+    .topbar-links { display: flex; gap: 20px; align-items: center; }
+    .topbar-links a { color: var(--text-dim); text-decoration: none; font-size: 13px; }
+    .topbar-links a:hover { color: var(--accent); }
+    .back-btn {
+      background: var(--accent); color: #fff; border: none; border-radius: 6px;
+      padding: 5px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+      text-decoration: none;
+    }
+    .back-btn:hover { background: #2080dd; }
+
+    /* ── LAYOUT ── */
+    .layout { display: flex; padding-top: 52px; min-height: 100vh; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: var(--sidebar-w); flex-shrink: 0;
+      position: fixed; top: 52px; left: 0; bottom: 0;
+      overflow-y: auto; background: var(--bg2);
+      border-right: 1px solid var(--border);
+      padding: 20px 0 40px;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .nav-section { margin-bottom: 6px; }
+    .nav-section-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-dim);
+      padding: 10px 20px 4px;
+    }
+    .nav-link {
+      display: block; padding: 5px 20px 5px 28px;
+      font-size: 13px; color: var(--text-dim); text-decoration: none;
+      border-left: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .nav-link:hover { color: var(--accent); background: rgba(64,160,255,0.06); }
+    .nav-link.active { color: var(--accent); border-left-color: var(--accent); background: rgba(64,160,255,0.08); }
+    .nav-link.sub { padding-left: 40px; font-size: 12.5px; }
+
+    /* ── MAIN CONTENT ── */
+    .content {
+      margin-left: var(--sidebar-w);
+      max-width: 820px;
+      padding: 40px 48px 80px;
+      width: 100%;
+    }
+
+    /* ── SECTION ── */
+    .doc-section { margin-bottom: 64px; }
+
+    h1 { font-size: 28px; font-weight: 700; color: var(--text-head); margin-bottom: 12px; }
+    h2 { font-size: 22px; font-weight: 700; color: var(--text-head); margin: 40px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+    h3 { font-size: 17px; font-weight: 600; color: var(--text-head); margin: 28px 0 8px; }
+    h4 { font-size: 14px; font-weight: 600; color: var(--accent2); margin: 20px 0 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    p { margin-bottom: 14px; }
+    ul, ol { margin: 8px 0 14px 20px; }
+    li { margin-bottom: 5px; }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    code {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace;
+      font-size: 13px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: #93c5fd;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      overflow-x: auto;
+      margin: 12px 0 20px;
+    }
+    pre code {
+      background: none; border: none; padding: 0;
+      font-size: 13px; line-height: 1.6;
+      color: var(--text);
+    }
+    .comment { color: #475569; }
+    .string  { color: #86efac; }
+    .key     { color: #93c5fd; }
+    .value   { color: #fbbf24; }
+
+    /* ── CALLOUTS ── */
+    .callout {
+      border-radius: 8px; padding: 14px 18px; margin: 16px 0;
+      border-left: 3px solid;
+    }
+    .callout-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+    .callout.tip    { background: rgba(134,239,172,0.07); border-color: var(--accent2); }
+    .callout.tip .callout-title { color: var(--accent2); }
+    .callout.note   { background: rgba(64,160,255,0.07); border-color: var(--accent); }
+    .callout.note .callout-title { color: var(--accent); }
+    .callout.warn   { background: rgba(251,191,36,0.07); border-color: var(--warning); }
+    .callout.warn .callout-title { color: var(--warning); }
+
+    /* ── TABLE ── */
+    table { width: 100%; border-collapse: collapse; margin: 14px 0 20px; font-size: 14px; }
+    th { background: var(--bg3); color: var(--text-head); padding: 9px 14px; text-align: left; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+    td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── BADGE ── */
+    .badge {
+      display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+      padding: 2px 7px; border-radius: 4px; margin-right: 4px;
+    }
+    .badge-green  { background: rgba(134,239,172,0.15); color: #86efac; border: 1px solid rgba(134,239,172,0.3); }
+    .badge-blue   { background: rgba(64,160,255,0.15);  color: #40a0ff; border: 1px solid rgba(64,160,255,0.3); }
+    .badge-orange { background: rgba(251,146,60,0.15);  color: #fb923c; border: 1px solid rgba(251,146,60,0.3); }
+    .badge-purple { background: rgba(167,139,250,0.15); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+
+    /* ── EXAMPLE QUERY BOX ── */
+    .query-example {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px;
+      margin: 6px 0; font-size: 14px; color: #93c5fd;
+      font-style: italic;
+    }
+    .query-example::before { content: '💬 '; }
+
+    /* ── INDEX CARDS ── */
+    .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0 24px; }
+    .card {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px 18px;
+      text-decoration: none; display: block;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .card:hover { border-color: var(--accent); background: rgba(64,160,255,0.05); text-decoration: none; }
+    .card-icon { font-size: 22px; margin-bottom: 6px; }
+    .card-title { font-weight: 600; color: var(--text-head); font-size: 14px; }
+    .card-desc { font-size: 12.5px; color: var(--text-dim); margin-top: 3px; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .content { margin-left: 0; padding: 24px 20px 60px; }
+      .card-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <a class="topbar-brand" href="#">
+    <span>🌍 Atlas GeoAI</span>
+    <small>Docs v2</small>
+  </a>
+  <nav class="topbar-links">
+    <a href="#getting-started">Getting Started</a>
+    <a href="#analysis">Analysis Tools</a>
+    <a href="#api">API</a>
+    <a href="/" class="back-btn">← Back to App</a>
+  </nav>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="nav-section">
+      <div class="nav-section-title">Introduction</div>
+      <a class="nav-link" href="#overview">Overview</a>
+      <a class="nav-link" href="#getting-started">Getting Started</a>
+      <a class="nav-link sub" href="#setup">Setup &amp; Installation</a>
+      <a class="nav-link sub" href="#first-query">Your First Query</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Search</div>
+      <a class="nav-link" href="#natural-language">Natural Language Search</a>
+      <a class="nav-link sub" href="#query-syntax">Query Syntax</a>
+      <a class="nav-link sub" href="#dates">Date Expressions</a>
+      <a class="nav-link sub" href="#locations">Locations &amp; Bbox</a>
+      <a class="nav-link sub" href="#cloud-cover">Cloud Cover</a>
+      <a class="nav-link sub" href="#fallback">Search Fallback</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Analysis Tools</div>
+      <a class="nav-link" href="#analysis">Overview</a>
+      <a class="nav-link" href="#scene-picker">Scene Picker</a>
+      <a class="nav-link sub" href="#picker-flow">How It Works</a>
+      <a class="nav-link" href="#ndvi">NDVI — Vegetation</a>
+      <a class="nav-link" href="#ndwi">NDWI — Water</a>
+      <a class="nav-link" href="#ndbi">NDBI — Built-up</a>
+      <a class="nav-link" href="#flood">Flood Mapping</a>
+      <a class="nav-link" href="#burn">Burn Scar</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Interface</div>
+      <a class="nav-link" href="#globe">Globe &amp; Map</a>
+      <a class="nav-link" href="#chat">Chat Panel</a>
+      <a class="nav-link" href="#scene-drawer">Scene Drawer</a>
+      <a class="nav-link" href="#layers">Layer Management</a>
+      <a class="nav-link" href="#conversation">Conversation History</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Reference</div>
+      <a class="nav-link" href="#sentinel2">Sentinel-2 Bands</a>
+      <a class="nav-link" href="#config">Configuration</a>
+      <a class="nav-link sub" href="#models-config">LLM Models</a>
+      <a class="nav-link sub" href="#env-vars">Environment Variables</a>
+      <a class="nav-link" href="#api">WebSocket API</a>
+      <a class="nav-link sub" href="#ws-messages">Message Types</a>
+      <a class="nav-link" href="#troubleshooting">Troubleshooting</a>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+
+    <!-- OVERVIEW -->
+    <section class="doc-section" id="overview">
+      <h1>Atlas GeoAI Documentation</h1>
+      <p>Atlas GeoAI is a natural-language satellite imagery search and analysis platform. Describe what you need in plain English — Atlas searches the Sentinel-2 archive, runs geospatial analysis, and renders results on an interactive globe.</p>
+
+      <div class="card-grid">
+        <a class="card" href="#natural-language">
+          <div class="card-icon">💬</div>
+          <div class="card-title">Natural Language Search</div>
+          <div class="card-desc">Find satellite scenes by describing place, date, and cloud cover in plain text.</div>
+        </a>
+        <a class="card" href="#analysis">
+          <div class="card-icon">🔬</div>
+          <div class="card-title">Analysis Tools</div>
+          <div class="card-desc">NDVI, NDWI, NDBI, flood mapping, burn scar detection — click to run.</div>
+        </a>
+        <a class="card" href="#scene-picker">
+          <div class="card-icon">🎯</div>
+          <div class="card-title">Scene Picker</div>
+          <div class="card-desc">Browse available scenes on the map before committing to analysis.</div>
+        </a>
+        <a class="card" href="#layers">
+          <div class="card-icon">🗂️</div>
+          <div class="card-title">Layer Management</div>
+          <div class="card-desc">Toggle, adjust opacity, and remove analysis output layers.</div>
+        </a>
+      </div>
+
+      <h3>Architecture at a glance</h3>
+      <table>
+        <thead><tr><th>Component</th><th>Technology</th><th>Port</th></tr></thead>
+        <tbody>
+          <tr><td>Backend / API</td><td>Python 3.11, FastAPI, LangGraph</td><td>8000</td></tr>
+          <tr><td>Frontend</td><td>React 18, TypeScript, MapLibre GL v4, deck.gl v9</td><td>5173 (dev)</td></tr>
+          <tr><td>Tile server</td><td>titiler 2.0 (COG streaming)</td><td>8001</td></tr>
+          <tr><td>LLM inference</td><td>Ollama (local, no API key required)</td><td>11434</td></tr>
+          <tr><td>Imagery archive</td><td>Element84 Earth Search (STAC) — Sentinel-2 L2A</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- GETTING STARTED -->
+    <section class="doc-section" id="getting-started">
+      <h2 id="setup">Getting Started</h2>
+
+      <h3>Prerequisites</h3>
+      <ul>
+        <li><a href="https://github.com/conda-forge/miniforge" target="_blank">micromamba</a> (or conda) for the Python environment</li>
+        <li><a href="https://ollama.com" target="_blank">Ollama</a> installed and running locally</li>
+        <li>Node.js ≥ 18 for the frontend</li>
+      </ul>
+
+      <h3>1. Clone &amp; create environment</h3>
+      <pre><code>git clone https://github.com/yourorg/atlas-geoai.git
+cd atlas-geoai
+
+micromamba create -f environment.yml
+micromamba activate atlas</code></pre>
+
+      <h3>2. Pull the LLM model</h3>
+      <pre><code>ollama pull gemma4:31b-cloud</code></pre>
+      <div class="callout note">
+        <div class="callout-title">Note</div>
+        The default model is <code>gemma4:31b-cloud</code>. You can change it in <code>config/models.yaml</code>. Any Ollama model works — smaller models (e.g. <code>llama3.2:3b</code>) are faster but less accurate at extracting search parameters.
+      </div>
+
+      <h3>3. Configure environment</h3>
+      <pre><code>cp .env.example .env
+<span class="comment"># Edit .env — only CORS_ORIGINS is required for local dev</span></code></pre>
+
+      <h3>4. Start all services</h3>
+      <pre><code><span class="comment"># Terminal 1 — Backend</span>
+uvicorn atlas.main:app --reload --port 8000
+
+<span class="comment"># Terminal 2 — Tile server</span>
+uvicorn titiler.application:app --port 8001
+
+<span class="comment"># Terminal 3 — Frontend</span>
+cd frontend && npm install && npm run dev</code></pre>
+
+      <p>Open <a href="http://localhost:5173" target="_blank">http://localhost:5173</a> — you should see the globe with the chat panel on the right.</p>
+
+      <h3 id="first-query">Your First Query</h3>
+      <p>Type in the chat box and press <code>Enter</code>:</p>
+      <div class="query-example">Show Sentinel-2 images over Nairobi, Kenya from last month</div>
+      <p>Atlas will search the archive, display footprints on the globe as blue polygons, and return a summary table of scenes in the chat.</p>
+    </section>
+
+    <!-- NATURAL LANGUAGE SEARCH -->
+    <section class="doc-section" id="natural-language">
+      <h2>Natural Language Search</h2>
+      <p>Atlas uses an LLM to extract structured search parameters from your query. You don't need to remember API syntax — describe what you want naturally.</p>
+
+      <h3 id="query-syntax">Query structure</h3>
+      <p>A good query has three parts — location, date, and optionally cloud cover. Analysis type is detected automatically from keywords:</p>
+
+      <table>
+        <thead><tr><th>Part</th><th>Examples</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Location</strong></td><td>Mumbai, India · Amazon rainforest · latitude/longitude bbox · Bangladesh</td></tr>
+          <tr><td><strong>Date</strong></td><td>last month · March 2024 · 2024-01-01 to 2024-03-31 · this week · latest</td></tr>
+          <tr><td><strong>Cloud cover</strong></td><td>less than 5% cloud · clear scenes · any cloud cover</td></tr>
+          <tr><td><strong>Task</strong></td><td>NDVI · flood extent · burn scar · vegetation health · urban extent</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Example queries</h3>
+      <div class="query-example">Show Sentinel-2 images over Nairobi, Kenya from last month</div>
+      <div class="query-example">NDVI analysis over the Amazon rainforest in January 2024 with less than 10% cloud</div>
+      <div class="query-example">Flood extent in Bangladesh after July 2024 monsoon</div>
+      <div class="query-example">Burn scar mapping over California, October 2023</div>
+      <div class="query-example">NDBI urban extent analysis over Mumbai, March 2024</div>
+      <div class="query-example">Latest clear scenes over London</div>
+
+      <h3 id="dates">Date expressions</h3>
+      <p>Relative expressions are resolved against today's date at query time:</p>
+      <table>
+        <thead><tr><th>Expression</th><th>Resolves to</th></tr></thead>
+        <tbody>
+          <tr><td><code>last month</code></td><td>Full calendar month before today</td></tr>
+          <tr><td><code>this week</code></td><td>Last 7 days</td></tr>
+          <tr><td><code>latest / recent / newest</code></td><td>Last 30 days</td></tr>
+          <tr><td><code>March 2024</code></td><td>2024-03-01 → 2024-03-31</td></tr>
+          <tr><td><code>2024-01-01 to 2024-03-31</code></td><td>Exact range</td></tr>
+          <tr><td><code>last 6 months</code></td><td>180 days back from today</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="locations">Locations &amp; bbox</h3>
+      <p>Atlas resolves place names using the LLM's built-in geography knowledge, with a <a href="https://nominatim.openstreetmap.org" target="_blank">Nominatim</a> geocoder fallback for unknown places. You can also provide explicit coordinates:</p>
+      <div class="query-example">Sentinel-2 images over bbox [72.7, 18.8, 73.1, 19.3] (Mumbai)</div>
+
+      <h3 id="cloud-cover">Cloud cover</h3>
+      <p>Default is &lt;20% cloud cover. You can override it:</p>
+      <table>
+        <thead><tr><th>Phrase</th><th>Cloud cover max</th></tr></thead>
+        <tbody>
+          <tr><td><code>clear scenes</code> / <code>less than 5%</code></td><td>5%</td></tr>
+          <tr><td>(default)</td><td>20%</td></tr>
+          <tr><td><code>up to 40% cloud</code></td><td>40%</td></tr>
+          <tr><td><code>any cloud cover</code> / <code>cloudy ok</code></td><td>80%</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="fallback">Automatic search fallback</h3>
+      <p>If no scenes match your original criteria, Atlas automatically relaxes constraints and retries — up to 5 times:</p>
+      <table>
+        <thead><tr><th>Attempt</th><th>Cloud max</th><th>Date window</th></tr></thead>
+        <tbody>
+          <tr><td>1 (original)</td><td>As requested</td><td>As requested</td></tr>
+          <tr><td>2</td><td>20%</td><td>Same</td></tr>
+          <tr><td>3</td><td>40%</td><td>Same</td></tr>
+          <tr><td>4</td><td>40%</td><td>+90 days back</td></tr>
+          <tr><td>5 (last resort)</td><td>80%</td><td>+180 days back</td></tr>
+        </tbody>
+      </table>
+      <p>When a fallback is used, the response notes which parameters were actually applied.</p>
+    </section>
+
+    <!-- ANALYSIS OVERVIEW -->
+    <section class="doc-section" id="analysis">
+      <h2>Analysis Tools</h2>
+      <p>Atlas includes five analysis tools that run on Sentinel-2 COG (Cloud-Optimized GeoTIFF) bands. All outputs are float32 or uint8 GeoTIFFs rendered as map layers via titiler.</p>
+
+      <div class="callout tip">
+        <div class="callout-title">Cloud masking</div>
+        All analysis tools apply the Sentinel-2 Scene Classification Layer (SCL) to mask clouds (class 8/9), cloud shadows (class 3), and thin cirrus (class 10) before computing indices. Results are more accurate than raw band math alone.
+      </div>
+
+      <table>
+        <thead><tr><th>Tool</th><th>Task keyword</th><th>Method</th><th>Output</th></tr></thead>
+        <tbody>
+          <tr><td><a href="#ndvi">NDVI</a></td><td><code>ndvi</code>, vegetation, plant health</td><td>(NIR − Red) / (NIR + Red)</td><td>Float32 [-1, 1]</td></tr>
+          <tr><td><a href="#ndwi">NDWI</a></td><td><code>ndwi</code>, water body, river</td><td>(Green − NIR) / (Green + NIR)</td><td>Float32 [-1, 1]</td></tr>
+          <tr><td><a href="#ndbi">NDBI</a></td><td><code>ndbi</code>, urban extent, built-up</td><td>(SWIR1 − NIR) / (SWIR1 + NIR)</td><td>Float32 [-1, 1]</td></tr>
+          <tr><td><a href="#flood">Flood Mapping</a></td><td><code>flood</code>, flooding, inundation</td><td>MNDWI &gt; 0 threshold</td><td>Binary uint8</td></tr>
+          <tr><td><a href="#burn">Burn Scar</a></td><td><code>burn</code>, wildfire, fire</td><td>NBR &lt; 0.2 threshold</td><td>Binary uint8</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- SCENE PICKER -->
+    <section class="doc-section" id="scene-picker">
+      <h2>Scene Picker</h2>
+      <p>When you request an analysis (NDVI, flood, burn scar, etc.), Atlas first shows all matching scenes and lets you pick which one to analyze — instead of automatically using the least-cloudy scene.</p>
+
+      <h3 id="picker-flow">How it works</h3>
+      <ol>
+        <li>Submit an analysis query (e.g. <em>"NDVI over Mumbai, March 2024"</em>)</li>
+        <li>Atlas searches the archive and displays matching scene footprints on the map as <strong>orange polygons</strong></li>
+        <li>The chat panel shows <em>"Found N scenes. Click a scene on the map to run NDVI analysis."</em></li>
+        <li>The map enters <strong>picker mode</strong>: cursor becomes a crosshair, a banner appears at the top of the map</li>
+        <li><strong>Hover</strong> over any footprint to see a tooltip with scene ID, date, and cloud cover %</li>
+        <li><strong>Click</strong> a footprint to select it — analysis starts immediately</li>
+        <li>The selected scene's analysis result is rendered as a new layer on the map</li>
+      </ol>
+
+      <div class="callout note">
+        <div class="callout-title">Cancelling selection</div>
+        Click <strong>Cancel</strong> in the green picker bar at the bottom of the chat panel to exit picker mode without running analysis.
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-title">Connection loss during selection</div>
+        If the WebSocket disconnects while you are in picker mode, picker mode is cancelled automatically with a notification. Re-run your query to try again.
+      </div>
+    </section>
+
+    <!-- NDVI -->
+    <section class="doc-section" id="ndvi">
+      <h2>NDVI — Vegetation Health</h2>
+      <span class="badge badge-green">Spectral Index</span>
+      <span class="badge badge-blue">Float32 Output</span>
+
+      <p>The Normalised Difference Vegetation Index measures the density and health of green vegetation. Values range from −1 to +1; healthy dense vegetation is typically 0.4–0.9.</p>
+
+      <h4>Formula</h4>
+      <pre><code>NDVI = (NIR − Red) / (NIR + Red)
+     = (B08 − B04) / (B08 + B04)</code></pre>
+
+      <h4>Interpretation</h4>
+      <table>
+        <thead><tr><th>NDVI range</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>&lt; 0</td><td>Water, snow, clouds, bare rock</td></tr>
+          <tr><td>0.0 – 0.2</td><td>Bare soil, desert, urban surfaces</td></tr>
+          <tr><td>0.2 – 0.4</td><td>Shrubland, grassland, sparse vegetation</td></tr>
+          <tr><td>0.4 – 0.6</td><td>Moderate vegetation, cropland</td></tr>
+          <tr><td>0.6 – 0.9</td><td>Dense healthy vegetation, tropical forest</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Example queries</h4>
+      <div class="query-example">NDVI over the Amazon rainforest in January 2024</div>
+      <div class="query-example">Vegetation health map of Punjab croplands, harvest season 2024</div>
+      <div class="query-example">Plant health index over Nairobi, last month</div>
+
+      <h4>Output details</h4>
+      <ul>
+        <li>Format: Float32 GeoTIFF, values clipped to [−1, 1]</li>
+        <li>Nodata: −9999</li>
+        <li>Resolution: 512 × 512 (resampled from 10m NIR + 10m Red)</li>
+        <li>Colormap: <code>rdylgn</code> (red → yellow → green)</li>
+        <li>Rendered via titiler with <code>rescale=-1,1</code></li>
+      </ul>
+
+      <h4>Bands used</h4>
+      <table>
+        <thead><tr><th>Band</th><th>Sentinel-2 asset key</th><th>Native resolution</th></tr></thead>
+        <tbody>
+          <tr><td>NIR</td><td><code>nir</code> (B08)</td><td>10m</td></tr>
+          <tr><td>Red</td><td><code>red</code> (B04)</td><td>10m</td></tr>
+          <tr><td>Cloud mask</td><td><code>scl</code></td><td>20m (upsampled)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- NDWI -->
+    <section class="doc-section" id="ndwi">
+      <h2>NDWI — Water Bodies</h2>
+      <span class="badge badge-blue">Spectral Index</span>
+      <span class="badge badge-blue">Float32 Output</span>
+
+      <p>The Normalised Difference Water Index highlights open water bodies. Positive values typically indicate water; negative values indicate vegetation or dry land.</p>
+
+      <h4>Formula</h4>
+      <pre><code>NDWI = (Green − NIR) / (Green + NIR)
+     = (B03 − B08) / (B03 + B08)</code></pre>
+
+      <h4>Interpretation</h4>
+      <table>
+        <thead><tr><th>NDWI range</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>&gt; 0.3</td><td>Open water (lakes, rivers, flooded areas)</td></tr>
+          <tr><td>0.0 – 0.3</td><td>Wet soil, shallow water</td></tr>
+          <tr><td>&lt; 0</td><td>Dry land, vegetation, urban</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Example queries</h4>
+      <div class="query-example">Water body extent over Lake Victoria, June 2024</div>
+      <div class="query-example">NDWI analysis over the Nile delta, surface water detection</div>
+      <div class="query-example">River extent mapping over Brahmaputra, Bangladesh</div>
+
+      <h4>Output details</h4>
+      <ul>
+        <li>Format: Float32 GeoTIFF, values clipped to [−1, 1]</li>
+        <li>Colormap: <code>blues_r</code> (white → blue, higher = more water)</li>
+        <li>Rendered with <code>rescale=-1,1</code></li>
+      </ul>
+    </section>
+
+    <!-- NDBI -->
+    <section class="doc-section" id="ndbi">
+      <h2>NDBI — Built-up / Urban Extent</h2>
+      <span class="badge badge-orange">Spectral Index</span>
+      <span class="badge badge-blue">Float32 Output</span>
+
+      <p>The Normalised Difference Built-up Index identifies urban and impervious surfaces. Built-up areas have high SWIR1 reflectance relative to NIR.</p>
+
+      <h4>Formula</h4>
+      <pre><code>NDBI = (SWIR1 − NIR) / (SWIR1 + NIR)
+     = (B11 − B08) / (B11 + B08)</code></pre>
+
+      <h4>Interpretation</h4>
+      <table>
+        <thead><tr><th>NDBI range</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>&gt; 0.1</td><td>Built-up land, concrete, asphalt</td></tr>
+          <tr><td>−0.1 – 0.1</td><td>Bare soil, transition areas</td></tr>
+          <tr><td>&lt; −0.1</td><td>Vegetation (inverse relationship)</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Example queries</h4>
+      <div class="query-example">NDBI analysis over Mumbai to show urban extent, March 2024</div>
+      <div class="query-example">Urban sprawl mapping over Nairobi outskirts, 2024</div>
+      <div class="query-example">Built-up index over Beijing metropolitan area, last month</div>
+
+      <h4>Bands used</h4>
+      <table>
+        <thead><tr><th>Band</th><th>Sentinel-2 asset key</th><th>Native resolution</th></tr></thead>
+        <tbody>
+          <tr><td>SWIR1</td><td><code>swir16</code> (B11)</td><td>20m</td></tr>
+          <tr><td>NIR</td><td><code>nir</code> (B08)</td><td>10m</td></tr>
+          <tr><td>Cloud mask</td><td><code>scl</code></td><td>20m</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- FLOOD MAPPING -->
+    <section class="doc-section" id="flood">
+      <h2>Flood Mapping</h2>
+      <span class="badge badge-blue">Binary Mask</span>
+      <span class="badge badge-purple">Area Stats</span>
+
+      <p>Flood mapping uses MNDWI (Modified Normalised Difference Water Index) to detect inundated areas. Pixels with MNDWI &gt; 0 are classified as water/flood.</p>
+
+      <h4>Formula</h4>
+      <pre><code>MNDWI = (Green − SWIR1) / (Green + SWIR1)
+      = (B03 − B11) / (B03 + B11)</code></pre>
+      <p>This method is used by the <a href="https://emergency.copernicus.eu" target="_blank">Copernicus Emergency Management Service (CEMS)</a> for operational flood mapping.</p>
+
+      <h4>Example queries</h4>
+      <div class="query-example">Flood extent in Bangladesh after the July 2024 monsoon</div>
+      <div class="query-example">Inundated areas over Pakistan Sindh province, August 2023</div>
+      <div class="query-example">Water extent mapping over the Mekong delta</div>
+
+      <h4>Output details</h4>
+      <ul>
+        <li>Format: Binary uint8 GeoTIFF (0 = not flooded, 1 = flooded)</li>
+        <li>Rendered as a blue semi-transparent overlay (<code>rescale=0,1</code>)</li>
+        <li>Chat response includes flooded area in km² and pixel count</li>
+      </ul>
+
+      <div class="callout warn">
+        <div class="callout-title">Limitation</div>
+        MNDWI detects <em>current</em> surface water from a single image — it does not distinguish between permanent water bodies and flood. For change detection, compare two scenes from before and after the flood event.
+      </div>
+    </section>
+
+    <!-- BURN SCAR -->
+    <section class="doc-section" id="burn">
+      <h2>Burn Scar Detection</h2>
+      <span class="badge badge-orange">Binary Mask</span>
+      <span class="badge badge-purple">Area Stats</span>
+
+      <p>Burn scar detection uses NBR (Normalised Burn Ratio) to identify areas affected by wildfire. Burned pixels have significantly lower NBR than healthy vegetation.</p>
+
+      <h4>Formula</h4>
+      <pre><code>NBR = (NIR − SWIR2) / (NIR + SWIR2)
+    = (B08 − B12) / (B08 + B12)</code></pre>
+
+      <h4>Thresholds</h4>
+      <table>
+        <thead><tr><th>NBR range</th><th>Burn severity</th></tr></thead>
+        <tbody>
+          <tr><td>&lt; −0.25</td><td>High severity burn</td></tr>
+          <tr><td>−0.25 – 0.1</td><td>Moderate burn</td></tr>
+          <tr><td>0.1 – 0.2</td><td>Low / unburned (threshold at 0.2)</td></tr>
+          <tr><td>&gt; 0.3</td><td>Healthy vegetation</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Example queries</h4>
+      <div class="query-example">Burn scar mapping over California wine country, October 2023</div>
+      <div class="query-example">Wildfire damage over Australian bush, February 2024</div>
+      <div class="query-example">NBR fire scar detection over Siberia, summer 2024</div>
+
+      <div class="callout note">
+        <div class="callout-title">Single-image limitation</div>
+        The current tool computes NBR on a single post-fire image. Bare soil and dark rock naturally have low NBR and may be misclassified as burned. For higher accuracy, a pre-fire reference scene should be used to compute dNBR (delta NBR). This is on the roadmap.
+      </div>
+    </section>
+
+    <!-- GLOBE -->
+    <section class="doc-section" id="globe">
+      <h2>Globe &amp; Map</h2>
+      <p>The main map uses <a href="https://maplibre.org" target="_blank">MapLibre GL</a> with a satellite base layer (ESRI World Imagery). Scene footprints are rendered via <a href="https://deck.gl" target="_blank">deck.gl</a> as interactive polygons.</p>
+
+      <h3>Interacting with footprints</h3>
+      <table>
+        <thead><tr><th>Action</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Click footprint (normal mode)</td><td>Opens Scene Drawer for that scene</td></tr>
+          <tr><td>Click footprint (picker mode)</td><td>Selects scene for analysis</td></tr>
+          <tr><td>Hover footprint (picker mode)</td><td>Shows tooltip: scene ID, date, cloud cover</td></tr>
+          <tr><td>Scroll</td><td>Zoom in / out</td></tr>
+          <tr><td>Click + drag</td><td>Pan map</td></tr>
+          <tr><td>Right-click + drag</td><td>Rotate / tilt</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Picker mode visual cues</h3>
+      <ul>
+        <li>Footprints turn <strong>orange</strong> (instead of blue)</li>
+        <li>A green banner appears at the top of the map</li>
+        <li>Cursor changes to a <strong>crosshair</strong></li>
+      </ul>
+    </section>
+
+    <!-- CHAT PANEL -->
+    <section class="doc-section" id="chat">
+      <h2>Chat Panel</h2>
+      <p>The right-side panel is your interface to Atlas. Type a query, press <code>Enter</code> or click →. While Atlas is working, a step-by-step progress indicator shows the current stage.</p>
+
+      <h3>Progress stages</h3>
+      <ol>
+        <li><strong>Planning search…</strong> — LLM extracts bbox, date range, task type</li>
+        <li><strong>Searching satellite archives…</strong> — STAC query to Element84</li>
+        <li><strong>Found N scenes. Formatting…</strong> — rendering results</li>
+        <li>(For analysis tasks) <strong>Running analysis…</strong> — computing index/mask</li>
+        <li><strong>Rendering layer…</strong> — COG layer added to map</li>
+      </ol>
+
+      <h3>Input states</h3>
+      <table>
+        <thead><tr><th>State</th><th>Input behaviour</th></tr></thead>
+        <tbody>
+          <tr><td>Idle</td><td>Normal — type and send</td></tr>
+          <tr><td>Processing</td><td>Disabled (greyed out), spinner shown</td></tr>
+          <tr><td>Picker mode</td><td>Replaced by green picker bar with Cancel button</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- SCENE DRAWER -->
+    <section class="doc-section" id="scene-drawer">
+      <h2>Scene Drawer</h2>
+      <p>Click any scene footprint on the map (outside picker mode) to open the Scene Drawer — a full-screen panel with its own embedded map showing the scene location.</p>
+
+      <h3>Left panel sections</h3>
+      <table>
+        <thead><tr><th>Section</th><th>Contents</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Metadata</strong></td><td>Scene ID, date, cloud cover, platform</td></tr>
+          <tr><td><strong>Layers</strong></td><td>Loaded COG bands — toggle visibility (eye icon), adjust opacity slider, remove (×)</td></tr>
+          <tr><td><strong>Add Band</strong></td><td>Load any available band into the scene's map as a COG layer</td></tr>
+          <tr><td><strong>Download</strong></td><td>Direct links to individual band GeoTIFFs on the Sentinel-2 archive</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Available bands in Scene Drawer</h3>
+      <table>
+        <thead><tr><th>Band key</th><th>Description</th><th>Rescale</th></tr></thead>
+        <tbody>
+          <tr><td><code>visual</code></td><td>True Color (TCI) — pre-rendered 8-bit RGB</td><td>0, 255</td></tr>
+          <tr><td><code>red</code></td><td>Red (B04, 10m)</td><td>100, 3000</td></tr>
+          <tr><td><code>green</code></td><td>Green (B03, 10m)</td><td>100, 3000</td></tr>
+          <tr><td><code>blue</code></td><td>Blue (B02, 10m)</td><td>100, 3000</td></tr>
+          <tr><td><code>nir</code></td><td>Near Infrared (B08, 10m)</td><td>100, 5000</td></tr>
+          <tr><td><code>swir16</code></td><td>SWIR1 (B11, 20m)</td><td>100, 3000</td></tr>
+          <tr><td><code>swir22</code></td><td>SWIR2 (B12, 20m)</td><td>100, 3000</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- LAYER MANAGEMENT -->
+    <section class="doc-section" id="layers">
+      <h2>Layer Management</h2>
+      <p>Analysis output layers (NDVI, flood masks, etc.) are added to the main map automatically after analysis completes. They can be managed from within the Scene Drawer.</p>
+
+      <h3>Layer controls</h3>
+      <table>
+        <thead><tr><th>Control</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>👁 Eye icon</td><td>Toggle layer visibility on/off</td></tr>
+          <tr><td>Opacity slider</td><td>Adjust transparency (0–100%)</td></tr>
+          <tr><td>× Remove button</td><td>Permanently removes layer from map</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Layer colours (chat panel badges)</h3>
+      <table>
+        <thead><tr><th>Analysis type</th><th>Colour</th></tr></thead>
+        <tbody>
+          <tr><td>NDVI</td><td><span class="badge badge-green">Green</span></td></tr>
+          <tr><td>NDWI</td><td><span class="badge badge-blue">Blue</span></td></tr>
+          <tr><td>NDBI</td><td><span class="badge badge-orange">Orange</span></td></tr>
+          <tr><td>Flood mapping</td><td><span class="badge badge-blue">Light blue</span></td></tr>
+          <tr><td>Burn scar</td><td><span class="badge badge-orange">Red-orange</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- CONVERSATION HISTORY -->
+    <section class="doc-section" id="conversation">
+      <h2>Conversation History</h2>
+      <p>Atlas maintains conversation context within a session. Follow-up queries understand previous context:</p>
+      <div class="query-example">Show Sentinel-2 images over Mumbai in March 2024</div>
+      <div class="query-example">Now run NDBI on the clearest scene</div>
+      <div class="query-example">What was the mean value?</div>
+
+      <div class="callout note">
+        <div class="callout-title">Session scope</div>
+        Conversation history is per-browser-session. Refreshing the page starts a new conversation. The history is sent with each query as a list of <code>{role, content}</code> pairs and prepended to the LLM's context.
+      </div>
+    </section>
+
+    <!-- SENTINEL-2 BANDS -->
+    <section class="doc-section" id="sentinel2">
+      <h2>Sentinel-2 Band Reference</h2>
+      <p>Atlas uses <a href="https://earth-search.aws.element84.com/v1" target="_blank">Element84 Earth Search v1</a> which provides semantic asset keys instead of band numbers.</p>
+
+      <table>
+        <thead><tr><th>Asset key</th><th>Band</th><th>Wavelength</th><th>Resolution</th><th>Used in</th></tr></thead>
+        <tbody>
+          <tr><td><code>blue</code></td><td>B02</td><td>490 nm</td><td>10m</td><td>True color</td></tr>
+          <tr><td><code>green</code></td><td>B03</td><td>560 nm</td><td>10m</td><td>NDWI, MNDWI, true color</td></tr>
+          <tr><td><code>red</code></td><td>B04</td><td>665 nm</td><td>10m</td><td>NDVI, true color</td></tr>
+          <tr><td><code>nir</code></td><td>B08</td><td>842 nm</td><td>10m</td><td>NDVI, NDWI, NDBI, NBR</td></tr>
+          <tr><td><code>swir16</code></td><td>B11</td><td>1610 nm</td><td>20m</td><td>NDBI, MNDWI</td></tr>
+          <tr><td><code>swir22</code></td><td>B12</td><td>2190 nm</td><td>20m</td><td>NBR (burn scar)</td></tr>
+          <tr><td><code>visual</code></td><td>TCI</td><td>RGB composite</td><td>10m</td><td>True color preview</td></tr>
+          <tr><td><code>scl</code></td><td>SCL</td><td>—</td><td>20m</td><td>Cloud masking in all tools</td></tr>
+          <tr><td><code>thumbnail</code></td><td>—</td><td>—</td><td>Low-res JPEG</td><td>Scene preview</td></tr>
+        </tbody>
+      </table>
+
+      <h3>SCL class values (Scene Classification)</h3>
+      <table>
+        <thead><tr><th>Class</th><th>Meaning</th><th>Masked in analysis?</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>No data</td><td>Yes</td></tr>
+          <tr><td>1</td><td>Saturated / defective</td><td>Yes</td></tr>
+          <tr><td>2</td><td>Dark area pixels</td><td>No</td></tr>
+          <tr><td>3</td><td>Cloud shadow</td><td>Yes</td></tr>
+          <tr><td>4</td><td>Vegetation</td><td>No</td></tr>
+          <tr><td>5</td><td>Not vegetated</td><td>No</td></tr>
+          <tr><td>6</td><td>Water</td><td>No</td></tr>
+          <tr><td>7</td><td>Unclassified</td><td>No</td></tr>
+          <tr><td>8</td><td>Cloud medium probability</td><td>Yes</td></tr>
+          <tr><td>9</td><td>Cloud high probability</td><td>Yes</td></tr>
+          <tr><td>10</td><td>Thin cirrus</td><td>Yes</td></tr>
+          <tr><td>11</td><td>Snow / ice</td><td>No</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- CONFIGURATION -->
+    <section class="doc-section" id="config">
+      <h2>Configuration</h2>
+
+      <h3 id="models-config">LLM Models (<code>config/models.yaml</code>)</h3>
+      <p>Each agent has a primary and fallback model. The format is <code>provider/model-name</code>.</p>
+      <pre><code>planner:
+  primary: <span class="string">"ollama/gemma4:31b-cloud"</span>
+  fallback: <span class="string">"ollama/llama3.2:3b"</span>
+
+stac_scout:
+  primary: <span class="string">"ollama/gemma4:31b-cloud"</span>
+
+response:
+  primary: <span class="string">"ollama/gemma4:31b-cloud"</span></code></pre>
+
+      <p>Supported provider prefixes:</p>
+      <table>
+        <thead><tr><th>Prefix</th><th>Provider</th><th>Requires</th></tr></thead>
+        <tbody>
+          <tr><td><code>ollama/</code></td><td>Local Ollama</td><td>Ollama running on port 11434</td></tr>
+          <tr><td><code>anthropic/</code></td><td>Anthropic API</td><td><code>ANTHROPIC_API_KEY</code> in <code>.env</code></td></tr>
+          <tr><td><code>openrouter/</code></td><td>OpenRouter</td><td><code>OPENROUTER_API_KEY</code> in <code>.env</code> (must be <code>sk-or-v1-*</code> format)</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="env-vars">Environment Variables (<code>.env</code>)</h3>
+      <table>
+        <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>CORS_ORIGINS</code></td><td><code>http://localhost:5173</code></td><td>Allowed frontend origins (comma-separated)</td></tr>
+          <tr><td><code>STAC_URL_ELEMENT84</code></td><td>Earth Search v1 URL</td><td>STAC API endpoint</td></tr>
+          <tr><td><code>OPENROUTER_API_KEY</code></td><td>—</td><td>Only needed if using OpenRouter models</td></tr>
+          <tr><td><code>ANTHROPIC_API_KEY</code></td><td>—</td><td>Only needed if using Anthropic models</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Frontend env (<code>frontend/.env</code>)</h3>
+      <table>
+        <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>VITE_WS_URL</code></td><td><code>ws://localhost:8000/ws/chat</code></td><td>WebSocket endpoint</td></tr>
+          <tr><td><code>VITE_BACKEND_URL</code></td><td><code>http://localhost:8000</code></td><td>Backend HTTP URL (for output GeoTIFFs)</td></tr>
+          <tr><td><code>VITE_TITILER_URL</code></td><td><code>http://localhost:8001</code></td><td>titiler COG tile server URL</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- API REFERENCE -->
+    <section class="doc-section" id="api">
+      <h2>WebSocket API</h2>
+      <p>The frontend communicates with the backend exclusively via WebSocket at <code>ws://localhost:8000/ws/chat</code>.</p>
+
+      <h3 id="ws-messages">Client → Server messages</h3>
+
+      <h4>Search / chat query</h4>
+      <pre><code>{
+  <span class="key">"query"</span>:   <span class="string">"NDVI over Mumbai, March 2024"</span>,
+  <span class="key">"history"</span>: [
+    { <span class="key">"role"</span>: <span class="string">"user"</span>,      <span class="key">"content"</span>: <span class="string">"previous message"</span> },
+    { <span class="key">"role"</span>: <span class="string">"assistant"</span>, <span class="key">"content"</span>: <span class="string">"previous response"</span> }
+  ]
+}</code></pre>
+
+      <h4>Run analysis (scene picker selection)</h4>
+      <pre><code>{
+  <span class="key">"type"</span>:      <span class="string">"run_analysis"</span>,
+  <span class="key">"scene_id"</span>:  <span class="string">"S2C_43QBA_20260423_0_L2A"</span>,
+  <span class="key">"task_type"</span>: <span class="string">"ndbi"</span>
+}</code></pre>
+
+      <h3>Server → Client messages</h3>
+      <table>
+        <thead><tr><th>Type</th><th>Fields</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><code>thinking</code></td><td><code>message: string</code></td><td>Progress step update</td></tr>
+          <tr><td><code>geojson</code></td><td><code>features: GeoJsonFeature[]</code></td><td>Scene footprints to display on map</td></tr>
+          <tr><td><code>scene_picker</code></td><td><code>task_type, scene_count</code></td><td>Pause — user must select a scene</td></tr>
+          <tr><td><code>tif_layers</code></td><td><code>tif_layers: TifLayer[]</code></td><td>Analysis output COG layers</td></tr>
+          <tr><td><code>message</code></td><td><code>content: string</code></td><td>Markdown chat response</td></tr>
+          <tr><td><code>error</code></td><td><code>message: string</code></td><td>Error description</td></tr>
+          <tr><td><code>done</code></td><td>—</td><td>Request complete</td></tr>
+        </tbody>
+      </table>
+
+      <h3>REST endpoints</h3>
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td><code>/health</code></td><td>Health check — returns <code>{"status":"ok","version":"0.2.0"}</code></td></tr>
+          <tr><td>GET</td><td><code>/outputs/{filename}</code></td><td>Serve analysis GeoTIFF for titiler to read</td></tr>
+          <tr><td>WS</td><td><code>/ws/chat</code></td><td>Primary chat + analysis WebSocket</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- TROUBLESHOOTING -->
+    <section class="doc-section" id="troubleshooting">
+      <h2>Troubleshooting</h2>
+
+      <h3>No scenes found</h3>
+      <p>Atlas automatically relaxes cloud cover and widens the date window (up to 5 retries). If still empty:</p>
+      <ul>
+        <li>Try a broader date range: <em>"…from the last 6 months"</em></li>
+        <li>Increase cloud cover: <em>"…with up to 40% cloud cover"</em></li>
+        <li>Check the region has Sentinel-2 coverage — the archive starts mid-2015</li>
+      </ul>
+
+      <h3>Analysis output looks wrong / too dark</h3>
+      <ul>
+        <li>The scene may have high cloud cover despite the filter — pick a scene with lower cloud % in picker mode</li>
+        <li>Try a different date — seasonal vegetation changes affect NDVI significantly</li>
+      </ul>
+
+      <h3>Ollama not responding</h3>
+      <pre><code>ollama serve        <span class="comment"># ensure Ollama is running</span>
+ollama list         <span class="comment"># check model is pulled</span>
+ollama pull gemma4:31b-cloud</code></pre>
+
+      <h3>titiler errors in tile rendering</h3>
+      <ul>
+        <li>Ensure titiler is running on port 8001: <code>uvicorn titiler.application:app --port 8001</code></li>
+        <li>Check <code>VITE_TITILER_URL</code> in your frontend <code>.env</code> matches</li>
+      </ul>
+
+      <h3>WebSocket keeps reconnecting</h3>
+      <ul>
+        <li>Check the backend is running: <code>curl http://localhost:8000/health</code></li>
+        <li>Verify <code>CORS_ORIGINS</code> includes your frontend origin (e.g. <code>http://localhost:5173</code>)</li>
+      </ul>
+
+      <h3>Output GeoTIFFs deleted on restart</h3>
+      <p>Output files older than 24 hours are automatically cleaned up at startup. This is by design — save any outputs you want to keep before restarting the backend.</p>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // Active nav highlight on scroll
+  const links = document.querySelectorAll('.nav-link');
+  const sections = document.querySelectorAll('.doc-section, h2, h3');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.nav-link[href="#${id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -75% 0px' });
+
+  document.querySelectorAll('[id]').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
